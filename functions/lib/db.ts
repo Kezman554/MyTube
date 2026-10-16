@@ -87,13 +87,20 @@ export function getUserById(db: D1Database, id: number) {
   return first<User>(db, 'SELECT * FROM users WHERE id = ?', id)
 }
 
-export function createUser(db: D1Database, email: string, username: string, role: Role = 'viewer') {
+export function createUser(
+  db: D1Database,
+  email: string,
+  username: string,
+  role: Role = 'viewer',
+  status: UserStatus = 'pending',
+) {
   return first<User>(
     db,
-    'INSERT INTO users (email, username, role) VALUES (?, ?, ?) RETURNING *',
+    'INSERT INTO users (email, username, role, status) VALUES (?, ?, ?, ?) RETURNING *',
     email,
     username,
     role,
+    status,
   )
 }
 
