@@ -62,7 +62,16 @@ The End stone texture is pure CSS: layered `conic-gradient` squares at prime-num
 - Tokens are CSS custom properties, switched by `@media (prefers-color-scheme: dark)`. Components reference roles, never values.
 
 ## Icon
-One source drawing, the Enderman face (black square, magenta eyes) on the 8×8 grid, generates every icon: the favicon (SVG and PNG), the apple-touch icon and any manifest icons. Built on its own card, and checked in a real browser tab and on a bookmarks bar. A 200 response proves nothing, because the SPA catch-all returns `index.html`, so check the content type.
+**A pixel slice of pizza with dripping cheese, on no background** (the creator's pick, icon round 2, 16 Oct 2026). One source drawing, `public/icon.svg`, generates every icon: the favicon (SVG and PNG), the apple-touch icon and any manifest icons. A 200 response proves nothing, because the SPA catch-all returns `index.html`, so check the content type.
+
+16×16 grid, `shape-rendering="crispEdges"`, transparent background. Each rect is x, y, width, height:
+- Crust: dark `#8A4F1C` 2,1,12,1 · crust `#B5712E` 1,2,14,2 · highlight `#D9964A` 2,2,11,1
+- Cheese `#F5C542`: 2,4,12,1 · 3,5,10,2 · 4,7,8,1 · 5,8,6,2 · 6,10,4,1 · 7,11,2,2
+- Cheese shade `#E0A92E` (right edge): 12,5,1,2 · 11,7,1,1 · 10,8,1,2 · 9,10,1,1 · 8,11,1,2
+- Pepperoni `#C2352B`: 4,5,2,2 · 9,5,2,1 · 9,6,1,1 · 6,8,2,1 · 7,9,1,1
+- Drips `#F5C542`: 3,7,1,3 · 12,7,1,2 · 5,10,1,2 · 7,13,1,2. Drip tips `#E0A92E`: 3,10,1,1 · 7,15,1,1
+
+The icon colours live only in `public/icon.svg`; they are not UI tokens. The creator's channel logo (an Enderman eating dripping pizza) is a separate, later piece of work and out of scope here.
 
 ## Not settled here
 This file does not settle the palette. Rendering on real devices does: family phones in both modes, and a laptop.
