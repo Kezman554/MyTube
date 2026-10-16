@@ -58,7 +58,7 @@ The End stone texture is pure CSS: layered `conic-gradient` squares at prime-num
 - No coloured text on translucent tints. Text on the End stone texture is checked against its darkest speck, `#BDB77F`.
 
 ## Enforcement
-- No colour, font-family or radius literal outside `src/styles/tokens.css`. Check: `grep -rnE "#[0-9a-fA-F]{3,8}\b|rgba?\(|font-family|border-radius" src | grep -v "src/styles/tokens.css"` returns nothing.
+- No colour, font or radius literal value outside `src/styles/tokens.css`: hex, `rgb()`/`hsl()`, a quoted font name in `font`/`font-family`, or a `font-family`/`border-radius` value that is not `var(--…)`. Property names are fine; `var(--…)` is fine everywhere, including React inline styles (`fontFamily`, `borderRadius`). Check: `grep -rnE "#[0-9a-fA-F]{3,8}\b|(rgb|hsl)a?\(|\bfont(-family|Family)?[[:space:]]*:[^;'\"]*['\"]([^v]|v[^a]|va[^r]|var[^(])|(font-family|border-radius)[[:space:]]*:[[:space:]]*([^v[:space:]]|v[^a]|va[^r]|var[^(])|borderRadius[[:space:]]*:[[:space:]]*(['\"]([^v]|v[^a]|va[^r]|var[^(])|[0-9])" src | grep -v "src/styles/tokens.css"` returns nothing.
 - Tokens are CSS custom properties, switched by `@media (prefers-color-scheme: dark)`. Components reference roles, never values.
 
 ## Icon

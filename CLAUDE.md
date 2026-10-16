@@ -30,7 +30,7 @@ Built with Vite + React + TypeScript on Cloudflare Pages, Pages Functions, R2, D
 
 ## Design
 - Read DESIGN.md before any UI work
-- No colour, font-family or radius literal outside src/styles/tokens.css; check with `grep -rnE "#[0-9a-fA-F]{3,8}\b|rgba?\(|font-family|border-radius" src | grep -v "src/styles/tokens.css"`
+- No colour, font or radius literal value outside src/styles/tokens.css (`var(--…)` is fine everywhere); check with `grep -rnE "#[0-9a-fA-F]{3,8}\b|(rgb|hsl)a?\(|\bfont(-family|Family)?[[:space:]]*:[^;'\"]*['\"]([^v]|v[^a]|va[^r]|var[^(])|(font-family|border-radius)[[:space:]]*:[[:space:]]*([^v[:space:]]|v[^a]|va[^r]|var[^(])|borderRadius[[:space:]]*:[[:space:]]*(['\"]([^v]|v[^a]|va[^r]|var[^(])|[0-9])" src | grep -v "src/styles/tokens.css"`
 
 ## Reference
 - Requirements: docs/mytube_PRD.md
