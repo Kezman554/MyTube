@@ -7,3 +7,8 @@ binding = "DB"
 database_name = "mytube-db"
 database_id = "45e4ecfd-d17c-4e5b-8907-d440f89600d0"
 migrations_dir = "migrations"
+
+# Private bucket: no r2.dev URL or custom domain. Objects are streamed through the API.
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "mytube-media"
