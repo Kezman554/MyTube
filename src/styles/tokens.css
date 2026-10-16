@@ -1,0 +1,70 @@
+/*
+ * MyTube design tokens. The only file allowed to hold colour, font-family
+ * or radius literals (see DESIGN.md, Enforcement). Light values are the
+ * default; dark values follow prefers-color-scheme.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Typefaces (bundled with @fontsource, imported in src/main.tsx) */
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-body: 'Rubik', system-ui, sans-serif;
+
+  /* Geometry: every corner is square, every border 2px, bevel 3px */
+  --radius: 0;
+  --border-width: 2px;
+  --bevel-size: 3px;
+
+  /* Light mode */
+  --ground: #EDEBC4;
+  --ground-texture:
+    conic-gradient(at 4px 4px, #0000 75%, #DAD6A3 0) 0 0 / 23px 29px,
+    conic-gradient(at 4px 4px, #0000 75%, #CFCA94 0) 11px 17px / 31px 37px,
+    conic-gradient(at 6px 6px, #0000 75%, #DFDBAA 0) 19px 5px / 41px 43px,
+    conic-gradient(at 2px 2px, #0000 75%, #BDB77F 0) 7px 13px / 19px 23px,
+    conic-gradient(at 4px 2px, #0000 75%, #C6C08A 0) 27px 31px / 47px 53px,
+    conic-gradient(at 2px 4px, #0000 75%, #F6F4D6 0) 3px 21px / 29px 31px,
+    #EDEBC4;
+  --surface: #F7F5DC;
+  --border: #BDB585;
+  --divider: #CFC99A;
+  --text: #1E1530;
+  --text-secondary: #5B4D70;
+  --accent-fill: #7A2FC2;
+  --on-accent: #FFFFFF;
+  --accent-bevel: #4E1A85;
+  --surface-bevel: #D6D09E;
+  --link: #6A24AD;
+  --attention: #E070FF;
+  --positive: #2E7D3E;
+  --warning: #9A5B00;
+  --danger-outline: #B3264A;
+  --danger-text: #B3264A;
+
+  /* Both modes: the banner and avatar face stay dark on purpose */
+  --banner: #1C1230;
+  --avatar-face: #050308;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0E0A14;
+    --ground-texture: #0E0A14;
+    --surface: #1A1424;
+    --border: #3B2A52;
+    --divider: #2A1F3B;
+    --text: #F1E9FF;
+    --text-secondary: #B5A6CC;
+    --accent-fill: #B45CFF;
+    --on-accent: #0E0A14;
+    --accent-bevel: #7A2FC2;
+    --surface-bevel: #120D1A;
+    --link: #C98BFF;
+    --attention: #E070FF;
+    --positive: #7ED98A;
+    --warning: #FFB86B;
+    --danger-outline: #FF7A9C;
+    --danger-text: #FF9CB5;
+  }
+}

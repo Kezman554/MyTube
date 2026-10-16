@@ -1,0 +1,12 @@
+.placeholder {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.wordmark {
+  margin: 0;
+  font: 400 clamp(2rem, 8vw, 4rem) / 1.2 var(--font-pixel);
+  color: var(--text);
+}
