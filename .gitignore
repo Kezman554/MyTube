@@ -1,0 +1,14 @@
+# dependencies and builds
+node_modules/
+dist/
+.wrangler/
+
+# secrets: .env for scripts, .dev.vars for Wrangler local dev
+.env
+.dev.vars
+
+# editor and OS
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
