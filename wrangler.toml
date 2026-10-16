@@ -1,3 +1,9 @@
 name = "mytube"
 pages_build_output_dir = "./dist"
 compatibility_date = "2026-10-16"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mytube-db"
+database_id = "45e4ecfd-d17c-4e5b-8907-d440f89600d0"
+migrations_dir = "migrations"
