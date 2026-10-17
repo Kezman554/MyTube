@@ -41,7 +41,15 @@ function App() {
               path="admin"
               element={
                 <Only allow={(user) => user.role === 'admin'}>
-                  <AdminPage />
+                  <AdminPage tab="users" />
+                </Only>
+              }
+            />
+            <Route
+              path="admin/content"
+              element={
+                <Only allow={(user) => user.role === 'admin'}>
+                  <AdminPage tab="content" />
                 </Only>
               }
             />

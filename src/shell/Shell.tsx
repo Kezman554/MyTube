@@ -8,7 +8,7 @@ import './shell.css'
 // No sidebar: Upload and Admin are in the account menu, Videos and Playlists are channel tabs.
 export function Shell() {
   const { user } = useMe()
-  const onAdmin = useMatch('/admin')
+  const onAdmin = useMatch('/admin/*')
   return (
     <>
       <a className="skip-link" href="#main">
