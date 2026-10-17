@@ -6,6 +6,8 @@ import '@fontsource/rubik/500.css'
 import '@fontsource/rubik/600.css'
 import './styles/tokens.css'
 import './styles/base.css'
+import './styles/buttons.css'
+import './styles/layout.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(

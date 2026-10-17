@@ -1,0 +1,90 @@
+/* Watch page. Values come from tokens.css only. */
+
+/* The player sits on the avatar's black face colour in both modes, like a screen switched off. */
+.player {
+  position: relative;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--avatar-face);
+}
+
+@media (min-width: 1040px) {
+  .player {
+    margin-top: 24px;
+    border: var(--border-width) solid var(--border);
+  }
+}
+
+.player img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.35;
+}
+
+/* On the always-dark player, so it uses the always-light glint rather than a mode-dependent text colour. */
+.player-note {
+  position: relative;
+  margin: 0;
+  padding: 8px 12px;
+  font-family: var(--font-pixel);
+  font-size: 0.625rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--eye-glint);
+  background: var(--avatar-face);
+}
+
+.watch-body {
+  gap: 16px;
+}
+
+.watch-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 768px) {
+  .watch-title {
+    font-size: 1.5rem;
+  }
+}
+
+.watch-channel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.watch-avatar {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: var(--avatar-face);
+  border: var(--border-width) solid var(--border);
+}
+
+.watch-channel-name {
+  font-family: var(--font-pixel);
+  font-size: 0.6875rem;
+}
+
+.watch-description {
+  margin: 0;
+  padding: 12px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: var(--border-width) solid var(--divider);
+}

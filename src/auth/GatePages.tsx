@@ -33,7 +33,7 @@ export function GateMessage({
       {children && <p className="gate-text">{children}</p>}
       {busy && <p className="gate-text" aria-live="polite">One moment…</p>}
       {action && (
-        <button type="button" className="gate-button" onClick={action.onClick}>
+        <button type="button" className="btn" onClick={action.onClick}>
           {action.label}
         </button>
       )}
@@ -67,12 +67,12 @@ export function RegisterPage({ email, onRegistered }: { email: string; onRegiste
         likes and comments.
       </p>
       <form className="gate-form" onSubmit={submit} noValidate>
-        <label className="gate-label" htmlFor="username">
+        <label className="field-label" htmlFor="username">
           Username
         </label>
         <input
           id="username"
-          className="gate-input"
+          className="input"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
@@ -83,15 +83,15 @@ export function RegisterPage({ email, onRegistered }: { email: string; onRegiste
           aria-invalid={error ? true : undefined}
           required
         />
-        <p id="username-hint" className="gate-hint">
+        <p id="username-hint" className="muted">
           3 to 20 letters, numbers, underscores or hyphens.
         </p>
         {error && (
-          <p className="gate-error" role="alert">
+          <p className="alert-error" role="alert">
             {error}
           </p>
         )}
-        <button type="submit" className="gate-button" disabled={submitting}>
+        <button type="submit" className="btn" disabled={submitting}>
           {submitting ? 'Joining…' : 'Join'}
         </button>
       </form>
@@ -108,7 +108,7 @@ export function WaitingPage({ username, onCheckAgain }: { username: string; onCh
       <p className="gate-text">
         Once you're approved, the videos will appear right here. You can close this page and come back later.
       </p>
-      <button type="button" className="gate-button gate-button-quiet" onClick={onCheckAgain}>
+      <button type="button" className="btn btn-quiet" onClick={onCheckAgain}>
         Check again
       </button>
     </GateFrame>

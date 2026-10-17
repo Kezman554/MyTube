@@ -1,53 +1,36 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
+import { formatBytes } from '../lib/format'
+import { useLoad } from '../lib/useLoad'
 import { createVideo, deleteOrphan, listOrphans, type Orphan } from '../videos/api'
 import { VideoDetailsForm } from '../videos/VideoDetailsForm'
-import './leftovers.css'
-
-type State = { kind: 'loading' } | { kind: 'failed'; message: string } | { kind: 'ready'; orphans: Orphan[] }
-
-const load = (): Promise<State> =>
-  listOrphans().then((r) => (r.ok ? { kind: 'ready', orphans: r.value } : { kind: 'failed', message: r.message }))
-
-function formatBytes(bytes: number) {
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`
-  return `${(bytes / 1024 ** 2).toFixed(1)} MB`
-}
+import './admin.css'
 
 // Admin only: video files in storage with no video record, from uploads whose details were
 // never saved. Each can be given a title and saved as a video, or deleted to free the space.
 // Shows nothing at all when there are none.
 export function LeftoverUploads() {
-  const [state, setState] = useState<State>({ kind: 'loading' })
-  const refresh = useCallback(() => load().then(setState), [])
+  const [orphans, reload] = useLoad('orphans', listOrphans)
 
-  useEffect(() => {
-    let live = true
-    load().then((next) => live && setState(next))
-    return () => {
-      live = false
-    }
-  }, [])
-
-  if (state.kind === 'loading' || (state.kind === 'ready' && state.orphans.length === 0)) return null
+  if (orphans.kind === 'loading' || (orphans.kind === 'ready' && orphans.value.length === 0)) return null
 
   return (
-    <section className="leftovers" aria-labelledby="leftovers-title">
-      <h2 id="leftovers-title" className="leftovers-title">
+    <section className="panel panel-attention" aria-labelledby="leftovers-title">
+      <h2 id="leftovers-title" className="panel-title">
         Leftover uploads
       </h2>
-      {state.kind === 'failed' ? (
-        <p className="leftovers-error" role="alert">
-          {state.message}
+      {orphans.kind === 'failed' ? (
+        <p className="alert-error" role="alert">
+          {orphans.message}
         </p>
       ) : (
         <>
-          <p className="leftovers-intro">
+          <p className="muted">
             These video files finished uploading but were never saved as videos. Save each one with a title, or
             delete it to free up storage.
           </p>
-          <ul className="leftovers-list">
-            {state.orphans.map((orphan) => (
-              <LeftoverRow key={orphan.key} orphan={orphan} onChanged={refresh} />
+          <ul className="admin-list">
+            {orphans.value.map((orphan) => (
+              <LeftoverRow key={orphan.key} orphan={orphan} onChanged={reload} />
             ))}
           </ul>
         </>
@@ -76,48 +59,49 @@ function LeftoverRow({ orphan, onChanged }: { orphan: Orphan; onChanged: () => v
   }
 
   return (
-    <li className="leftovers-item">
-      <p className="leftovers-name">{name}</p>
-      <p className="leftovers-meta">
+    <li className="admin-item">
+      <p className="admin-item-name">{name}</p>
+      <p className="muted">
         {formatBytes(orphan.size)} · uploaded {new Date(orphan.uploaded_at).toLocaleString()}
         {orphan.uploaded_by ? ` by ${orphan.uploaded_by.username}` : ''}
       </p>
       {error && (
-        <p className="leftovers-error" role="alert">
+        <p className="alert-error" role="alert">
           {error}
         </p>
       )}
 
       {mode === 'closed' && (
-        <div className="leftovers-actions">
-          <button type="button" className="leftovers-button" onClick={() => setMode('saving')}>
+        <div className="admin-actions">
+          <button type="button" className="btn btn-small" onClick={() => setMode('saving')}>
             Save as video
           </button>
-          <button type="button" className="leftovers-button leftovers-button-danger" onClick={() => setMode('confirmDelete')}>
+          <button type="button" className="btn btn-danger btn-small" onClick={() => setMode('confirmDelete')}>
             Delete file
           </button>
         </div>
       )}
 
       {mode === 'confirmDelete' && (
-        <div className="leftovers-actions">
-          <p className="leftovers-confirm">Delete this file for good? This can't be undone.</p>
-          <button type="button" className="leftovers-button leftovers-button-danger" onClick={() => void remove()}>
+        <div className="admin-actions">
+          <p className="admin-confirm">Delete this file for good? This can't be undone.</p>
+          <button type="button" className="btn btn-danger btn-small" onClick={() => void remove()}>
             Yes, delete file
           </button>
-          <button type="button" className="leftovers-button leftovers-button-quiet" onClick={() => setMode('closed')}>
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => setMode('closed')}>
             Keep it
           </button>
         </div>
       )}
 
       {mode === 'saving' && (
-        <>
-          <VideoDetailsForm initialTitle={name.replace(/\.[^.]+$/, '')} canPublish ready onSave={save} />
-          <button type="button" className="leftovers-button leftovers-button-quiet" onClick={() => setMode('closed')}>
-            Cancel
-          </button>
-        </>
+        <VideoDetailsForm
+          initialTitle={name.replace(/\.[^.]+$/, '')}
+          canPublish
+          ready
+          onSave={save}
+          onCancel={() => setMode('closed')}
+        />
       )}
     </li>
   )

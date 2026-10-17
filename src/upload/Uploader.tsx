@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { Link } from 'react-router'
+import { formatBytes } from '../lib/format'
 import { createVideo, type Video } from '../videos/api'
 import { VideoDetailsForm } from '../videos/VideoDetailsForm'
 import { httpUploadApi } from './httpApi'
@@ -14,11 +16,6 @@ type State =
   | { kind: 'idle'; message: string | null }
   | { kind: 'working'; file: File; upload: Upload }
   | { kind: 'saved'; video: Video }
-
-function formatBytes(bytes: number) {
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`
-  return `${(bytes / 1024 ** 2).toFixed(1)} MB`
-}
 
 // "My Ender Farm.mp4" -> "My Ender Farm", as a starting title.
 const titleFrom = (filename: string) => filename.replace(/\.[^.]+$/, '').slice(0, 100)
@@ -93,82 +90,83 @@ export function Uploader({ canPublish }: { canPublish: boolean }) {
     return null
   }
 
+  if (state.kind === 'working') {
+    const { file, upload: current } = state
+    return (
+      <>
+        <UploadStatus file={file} upload={current} onCancel={() => controller.current?.abort()} onRetry={() => void upload(file)} />
+        <VideoDetailsForm
+          initialTitle={titleFrom(file.name)}
+          canPublish={canPublish}
+          ready={current.kind === 'done'}
+          waitingLabel={current.kind === 'failed' ? 'Upload failed' : 'Waiting for upload…'}
+          onSave={(form) => (current.kind === 'done' ? save(current.key, form) : Promise.resolve(null))}
+        />
+      </>
+    )
+  }
+
   return (
-    <section className="uploader" aria-labelledby="uploader-title">
-      <h2 id="uploader-title" className="uploader-title">
-        Upload a video
-      </h2>
-
-      {state.kind === 'working' && (
-        <>
-          <p className="uploader-file">{state.file.name}</p>
-          <UploadStatus file={state.file} upload={state.upload} onCancel={() => controller.current?.abort()} onRetry={() => void upload(state.file)} />
-          <VideoDetailsForm
-            initialTitle={titleFrom(state.file.name)}
-            canPublish={canPublish}
-            ready={state.upload.kind === 'done'}
-            waitingLabel={state.upload.kind === 'failed' ? 'Upload failed' : 'Waiting for upload…'}
-            onSave={(form) => (state.upload.kind === 'done' ? save(state.upload.key, form) : Promise.resolve(null))}
-          />
-        </>
+    <div className="panel uploader-pick">
+      {state.kind === 'saved' && (
+        <p className="alert-ok" role="status">
+          {state.video.status === 'published' ? 'Published' : 'Saved as a draft'}:{' '}
+          <Link to={`/watch/${state.video.id}`}>{state.video.title}</Link>.
+          {state.video.status === 'draft' && !canPublish && ' It will appear on the channel once it has been approved.'}
+        </p>
       )}
-
-      {state.kind !== 'working' && (
-        <>
-          {state.kind === 'saved' && (
-            <p className="uploader-done" role="status">
-              {state.video.status === 'published' ? 'Published' : 'Saved as a draft'}: <strong>{state.video.title}</strong>.
-              {state.video.status === 'draft' && !canPublish && ' It will appear on the channel once it has been approved.'}
-            </p>
-          )}
-          {state.kind === 'idle' && state.message && (
-            <p className="uploader-error" role="alert">
-              {state.message}
-            </p>
-          )}
-          <p className="uploader-hint">MP4, MOV or WebM, up to 4 GB. Keep this page open until it finishes.</p>
-          <label className="uploader-button uploader-pick">
-            {state.kind === 'saved' ? 'Upload another' : 'Choose video'}
-            <input type="file" accept={ACCEPT_ATTRIBUTE} onChange={choose} />
-          </label>
-        </>
+      {state.kind === 'idle' && state.message && (
+        <p className="alert-error" role="alert">
+          {state.message}
+        </p>
       )}
-    </section>
+      <p className="muted">MP4, MOV or WebM, up to 4 GB. Keep this page open until it finishes.</p>
+      <label className="btn btn-file">
+        {state.kind === 'saved' ? 'Upload another' : 'Choose video'}
+        <input type="file" accept={ACCEPT_ATTRIBUTE} onChange={choose} />
+      </label>
+    </div>
   )
 }
 
 function UploadStatus({ file, upload, onCancel, onRetry }: { file: File; upload: Upload; onCancel: () => void; onRetry: () => void }) {
-  if (upload.kind === 'failed') {
-    return (
-      <div className="uploader-error" role="alert">
-        <p>{upload.message}</p>
-        <button type="button" className="uploader-button" onClick={onRetry}>
-          Try again
-        </button>
-      </div>
-    )
-  }
-
-  const sent = upload.kind === 'done' ? file.size : upload.sent
+  const sent = upload.kind === 'done' ? file.size : upload.kind === 'uploading' ? upload.sent : 0
   const percent = file.size ? Math.floor((sent / file.size) * 100) : 100
+
   return (
-    <>
-      <div className="uploader-bar" role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
-        <div className="uploader-bar-fill" style={{ width: `${percent}%` }} />
+    <div className="panel uploader-status">
+      <div className="uploader-status-head">
+        <span className="uploader-file">
+          {file.name} <span className="muted-inline">· {formatBytes(file.size)}</span>
+        </span>
+        {upload.kind !== 'failed' && <span className="uploader-percent">{percent}%</span>}
       </div>
-      <p className="uploader-meta" aria-live="polite">
-        {upload.kind === 'done'
-          ? `Uploaded · ${formatBytes(file.size)}. Add the details below and save.`
-          : `${percent}% · ${formatBytes(sent)} of ${formatBytes(file.size)}`}
-      </p>
-      {upload.kind === 'uploading' && (
-        <>
-          {upload.note && <p className="uploader-note">{upload.note}</p>}
-          <button type="button" className="uploader-button uploader-button-danger" onClick={onCancel}>
-            Cancel upload
+
+      {upload.kind === 'failed' ? (
+        <div className="alert-error" role="alert">
+          <p>{upload.message}</p>
+          <button type="button" className="btn btn-small" onClick={onRetry}>
+            Try again
           </button>
+        </div>
+      ) : (
+        <>
+          <div className="uploader-bar" role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+            <div className="uploader-bar-fill" style={{ width: `${percent}%` }} />
+          </div>
+          <p className="muted" aria-live="polite">
+            {upload.kind === 'done'
+              ? 'Uploaded. Add the details below and save.'
+              : `${formatBytes(sent)} of ${formatBytes(file.size)}. You can fill in the details while it uploads.`}
+          </p>
+          {upload.kind === 'uploading' && upload.note && <p className="uploader-note">{upload.note}</p>}
+          {upload.kind === 'uploading' && (
+            <button type="button" className="btn btn-danger btn-small uploader-cancel" onClick={onCancel}>
+              Cancel upload
+            </button>
+          )}
         </>
       )}
-    </>
+    </div>
   )
 }

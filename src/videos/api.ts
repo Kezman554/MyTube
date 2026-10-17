@@ -1,4 +1,8 @@
-// Client side of /api/videos and /api/admin/orphans. Mirrors functions/lib/videos.ts; keep them in step.
+// Client side of /api/videos, /api/playlists and /api/admin/orphans.
+// Mirrors functions/lib/videos.ts and functions/lib/playlists.ts; keep them in step.
+import { request } from '../lib/http'
+
+export type { Result } from '../lib/http'
 
 export const TITLE_MAX = 100
 export const DESCRIPTION_MAX = 5000
@@ -16,6 +20,15 @@ export interface Video {
   thumbnail_url: string | null
 }
 
+export interface PlaylistSummary {
+  id: number
+  title: string
+  description: string
+  created_at: string
+  video_count: number
+  thumbnail_url: string | null
+}
+
 export interface Orphan {
   key: string
   size: number
@@ -24,26 +37,22 @@ export interface Orphan {
   filename: string | null
 }
 
-export type Result<T> = { ok: true; value: T } | { ok: false; message: string }
+// Published videos plus the caller's own drafts, newest first.
+export const listVideos = () => request('/api/videos', {}, (b: { videos: Video[] }) => b.videos)
 
-async function call<T>(url: string, init: RequestInit, pick: (body: never) => T): Promise<Result<T>> {
-  let res: Response
-  try {
-    res = await fetch(url, { ...init, headers: { Accept: 'application/json', ...init.headers } })
-  } catch {
-    return { ok: false, message: "Couldn't reach MyTube. Check your connection and try again." }
-  }
-  const body = await res.json().catch(() => ({}))
-  if (res.ok) return { ok: true, value: pick(body as never) }
-  return { ok: false, message: body.message ?? `Something went wrong (${res.status}). Please try again.` }
-}
+export const getVideo = (id: string) => request(`/api/videos/${encodeURIComponent(id)}`, {}, (b: { video: Video }) => b.video)
 
 // The form carries key, title, description, thumbnail and (admin only) publish.
 export const createVideo = (form: FormData) =>
-  call('/api/videos', { method: 'POST', body: form }, (b: { video: Video }) => b.video)
+  request('/api/videos', { method: 'POST', body: form }, (b: { video: Video }) => b.video)
 
-export const listOrphans = () =>
-  call('/api/admin/orphans', {}, (b: { orphans: Orphan[] }) => b.orphans)
+export const listPlaylists = () =>
+  request('/api/playlists', {}, (b: { playlists: PlaylistSummary[] }) => b.playlists)
+
+export const getPlaylist = (id: string) =>
+  request(`/api/playlists/${encodeURIComponent(id)}`, {}, (b: { playlist: PlaylistSummary; videos: Video[] }) => b)
+
+export const listOrphans = () => request('/api/admin/orphans', {}, (b: { orphans: Orphan[] }) => b.orphans)
 
 export const deleteOrphan = (key: string) =>
-  call(`/api/admin/orphans?key=${encodeURIComponent(key)}`, { method: 'DELETE' }, () => true)
+  request(`/api/admin/orphans?key=${encodeURIComponent(key)}`, { method: 'DELETE' }, () => true)

@@ -13,6 +13,7 @@ export function VideoDetailsForm({
   ready,
   waitingLabel = 'Waiting for upload…',
   onSave,
+  onCancel,
 }: {
   initialTitle?: string
   canPublish: boolean
@@ -20,6 +21,7 @@ export function VideoDetailsForm({
   ready: boolean
   waitingLabel?: string
   onSave: (form: FormData) => Promise<string | null>
+  onCancel?: () => void
 }) {
   const id = useId()
   const [title, setTitle] = useState(initialTitle)
@@ -53,72 +55,94 @@ export function VideoDetailsForm({
     setSaving(false)
   }
 
+  const saveLabel = !ready ? waitingLabel : saving ? 'Saving…' : canPublish ? (publish ? 'Publish video' : 'Save as draft') : 'Send for approval'
+
   return (
     <form className="video-form" onSubmit={submit} noValidate>
-      <label className="video-form-label" htmlFor={`${id}-title`}>
-        Title
-      </label>
-      <input
-        id={`${id}-title`}
-        className="video-form-input"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        maxLength={TITLE_MAX}
-        required
-      />
-
-      <label className="video-form-label" htmlFor={`${id}-description`}>
-        Description <span className="video-form-optional">(optional)</span>
-      </label>
-      <textarea
-        id={`${id}-description`}
-        className="video-form-input video-form-textarea"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        maxLength={DESCRIPTION_MAX}
-        rows={4}
-      />
-
-      <span className="video-form-label" id={`${id}-thumb-label`}>
-        Thumbnail <span className="video-form-optional">(optional: JPG, PNG or WebP, up to 5 MB)</span>
-      </span>
-      <div className="video-form-thumb">
-        {preview && <img className="video-form-preview" src={preview} alt="Thumbnail preview" />}
-        <label className="video-form-button video-form-button-quiet">
-          {thumbnail ? 'Change image' : 'Choose image'}
+      <div className="video-form-fields">
+        <div className="video-form-field">
+          <label className="field-label" htmlFor={`${id}-title`}>
+            Title
+          </label>
           <input
-            type="file"
-            accept={THUMBNAIL_ACCEPT}
-            aria-labelledby={`${id}-thumb-label`}
-            onChange={(e) => {
-              chooseThumbnail(e.target.files?.[0])
-              e.target.value = ''
-            }}
+            id={`${id}-title`}
+            className="input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={TITLE_MAX}
+            required
           />
-        </label>
-        {thumbnail && (
-          <button type="button" className="video-form-link" onClick={() => setThumbnail(null)}>
-            Remove image
-          </button>
+        </div>
+
+        <div className="video-form-field">
+          <label className="field-label" htmlFor={`${id}-description`}>
+            Description <span className="muted-inline">(optional)</span>
+          </label>
+          <textarea
+            id={`${id}-description`}
+            className="input"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={DESCRIPTION_MAX}
+            rows={5}
+          />
+        </div>
+
+        {canPublish && (
+          <label className="video-form-check">
+            <input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
+            Publish now (otherwise it's saved as a draft)
+          </label>
         )}
       </div>
 
-      {canPublish && (
-        <label className="video-form-check">
-          <input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
-          Publish now (otherwise it's saved as a draft)
-        </label>
-      )}
+      <div className="video-form-field">
+        <span className="field-label" id={`${id}-thumb-label`}>
+          Thumbnail <span className="muted-inline">(optional)</span>
+        </span>
+        <span className="thumb video-form-preview">{preview && <img src={preview} alt="Thumbnail preview" />}</span>
+        <span className="muted">JPG, PNG or WebP, up to 5 MB.</span>
+        <div className="video-form-thumb-actions">
+          <label className="btn btn-quiet btn-small btn-file">
+            {thumbnail ? 'Change image' : 'Choose image'}
+            <input
+              type="file"
+              accept={THUMBNAIL_ACCEPT}
+              aria-labelledby={`${id}-thumb-label`}
+              onChange={(e) => {
+                chooseThumbnail(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
+          </label>
+          {thumbnail && (
+            <button type="button" className="btn-link" onClick={() => setThumbnail(null)}>
+              Remove image
+            </button>
+          )}
+        </div>
+      </div>
 
-      {error && (
-        <p className="video-form-error" role="alert">
-          {error}
+      <div className="video-form-footer">
+        {error && (
+          <p className="alert-error" role="alert">
+            {error}
+          </p>
+        )}
+        <p className="muted">
+          {canPublish ? 'Drafts stay hidden until you publish them.' : 'The admin approves it before anyone else can see it.'}
         </p>
-      )}
-
-      <button type="submit" className="video-form-button" disabled={!ready || saving}>
-        {!ready ? waitingLabel : saving ? 'Saving…' : 'Save video'}
-      </button>
+        <div className="video-form-actions">
+          {onCancel && (
+            <button type="button" className="btn btn-quiet" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+          <button type="submit" className="btn" disabled={!ready || saving}>
+            {saveLabel}
+          </button>
+        </div>
+      </div>
     </form>
   )
 }

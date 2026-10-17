@@ -1,0 +1,80 @@
+/* Admin page panels: leftover uploads and playlists. Panels, fields, buttons and alerts are shared
+   (styles/layout.css, styles/buttons.css); this is only the lists inside them. */
+
+.admin-list {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-item {
+  display: grid;
+  gap: 8px;
+  padding: 16px 0;
+  border-top: var(--border-width) solid var(--divider);
+}
+
+.admin-item > p {
+  margin: 0;
+}
+
+.admin-item-name {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+h3.admin-item-name {
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-confirm {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.admin-form {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.admin-form .input {
+  justify-self: stretch;
+}
+
+.admin-inline {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.admin-inline .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-ordered {
+  margin: 0;
+  padding-left: 24px;
+}
+
+.admin-ordered-item {
+  padding: 8px 0;
+}
+
+.admin-ordered-title {
+  display: block;
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
+}

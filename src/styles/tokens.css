@@ -45,6 +45,11 @@
   /* Both modes: the banner and avatar face stay dark on purpose */
   --banner: #1C1230;
   --avatar-face: #050308;
+  /* Banner particles (decoration only, never under text) and the eyes' glint, also both modes */
+  --particle-1: #B45CFF;
+  --particle-2: #E070FF;
+  --particle-3: #7A2FC2;
+  --eye-glint: #F7C9FF;
 }
 
 @media (prefers-color-scheme: dark) {

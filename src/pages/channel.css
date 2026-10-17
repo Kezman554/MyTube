@@ -1,0 +1,164 @@
+/* Channel page, video and playlist grids, cards. Values come from tokens.css only. */
+
+/* The banner stays dark in light mode on purpose; particles are decoration and never sit under text. */
+.banner {
+  position: relative;
+  height: 128px;
+  overflow: hidden;
+  background: var(--banner);
+}
+
+@media (min-width: 768px) {
+  .banner {
+    height: 190px;
+  }
+}
+
+.particle {
+  position: absolute;
+  opacity: 0.8;
+}
+
+.particle-1 {
+  background: var(--particle-1);
+}
+
+.particle-2 {
+  background: var(--particle-2);
+}
+
+.particle-3 {
+  background: var(--particle-3);
+}
+
+.channel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+.channel-id {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.channel-avatar {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  background: var(--avatar-face);
+  border: var(--border-width) solid var(--border);
+}
+
+@media (min-width: 768px) {
+  .channel-avatar {
+    width: 84px;
+    height: 84px;
+  }
+
+  .channel-avatar svg {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+.channel-text {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.channel-name {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 768px) {
+  .channel-name {
+    font-size: 1.625rem;
+  }
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+}
+
+/* Grids: 2 columns on a phone, 3 on a tablet, 4 on a laptop. */
+.grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 12px;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 28px 20px;
+  }
+}
+
+.card {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.card:focus-visible {
+  outline: var(--border-width) solid var(--link);
+  outline-offset: 4px;
+}
+
+.card:hover .card-title {
+  text-decoration: underline;
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 768px) {
+  .card-title {
+    font-size: 1rem;
+  }
+}
+
+.card-meta {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* A label in the pixel face, e.g. Draft. Outline only: no coloured text on a tint. */
+.chip {
+  display: inline-block;
+  padding: 2px 6px;
+  font-family: var(--font-pixel);
+  font-size: 0.5625rem;
+  line-height: 1.4;
+  color: var(--text);
+  border: var(--border-width) solid var(--border);
+}

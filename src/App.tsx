@@ -1,27 +1,54 @@
-import { LeftoverUploads } from './admin/LeftoverUploads'
-import { Playlists } from './admin/Playlists'
+import type { ReactNode } from 'react'
+import { BrowserRouter, Route, Routes } from 'react-router'
 import { AuthGate } from './auth/AuthGate'
 import { canUpload, useMe } from './auth/MeContext'
-import { Uploader } from './upload/Uploader'
-import './App.css'
+import type { User } from './auth/api'
+import { AdminPage } from './pages/AdminPage'
+import { ChannelPage } from './pages/ChannelPage'
+import { PlaylistPage } from './pages/PlaylistPage'
+import { NotFoundPage } from './pages/Status'
+import { UploadPage } from './pages/UploadPage'
+import { WatchPage } from './pages/WatchPage'
+import { Shell } from './shell/Shell'
 
-function Home() {
+// A page only some roles may open. Everyone else gets Not found, so it doesn't reveal it exists.
+// The API enforces the same rules; this only keeps people off pages that would fail for them.
+function Only({ allow, children }: { allow: (user: User) => boolean; children: ReactNode }) {
   const { user } = useMe()
-  const isAdmin = user.role === 'admin'
-  return (
-    <main className="placeholder">
-      <h1 className="wordmark">MyTube</h1>
-      {isAdmin && <LeftoverUploads />}
-      {canUpload(user) && <Uploader canPublish={isAdmin} />}
-      {isAdmin && <Playlists />}
-    </main>
-  )
+  return allow(user) ? children : <NotFoundPage />
 }
 
+// AuthGate first (register, pending and removed screens), then the routes for approved users.
 function App() {
   return (
     <AuthGate>
-      <Home />
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Shell />}>
+            <Route index element={<ChannelPage tab="videos" />} />
+            <Route path="watch/:id" element={<WatchPage />} />
+            <Route path="playlists" element={<ChannelPage tab="playlists" />} />
+            <Route path="playlists/:id" element={<PlaylistPage />} />
+            <Route
+              path="upload"
+              element={
+                <Only allow={canUpload}>
+                  <UploadPage />
+                </Only>
+              }
+            />
+            <Route
+              path="admin"
+              element={
+                <Only allow={(user) => user.role === 'admin'}>
+                  <AdminPage />
+                </Only>
+              }
+            />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
     </AuthGate>
   )
 }

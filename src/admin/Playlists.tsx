@@ -9,9 +9,8 @@ import {
   reorderPlaylist,
   type AdminPlaylist,
 } from '../playlists/api'
-import '../styles/buttons.css'
 import type { Result, Video } from '../videos/api'
-import './playlists.css'
+import './admin.css'
 
 type Data = { playlists: AdminPlaylist[]; videos: Video[] }
 type State = { kind: 'loading' } | { kind: 'failed'; message: string } | { kind: 'ready'; data: Data }
@@ -45,14 +44,14 @@ export function Playlists() {
     )
 
   return (
-    <section className="playlists" aria-labelledby="playlists-title">
-      <h2 id="playlists-title" className="playlists-title">
+    <section className="panel" aria-labelledby="playlists-title">
+      <h2 id="playlists-title" className="panel-title">
         Playlists
       </h2>
       <CreatePlaylist onCreated={() => void reload()} />
-      {state.kind === 'loading' && <p className="playlists-muted">Loading playlists…</p>}
+      {state.kind === 'loading' && <p className="muted">Loading playlists…</p>}
       {state.kind === 'failed' && (
-        <p className="playlists-error" role="alert">
+        <p className="alert-error" role="alert">
           {state.message}
         </p>
       )}
@@ -91,24 +90,24 @@ function CreatePlaylist({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <form className="playlists-create" onSubmit={submit} noValidate>
-      <label className="playlists-label" htmlFor={`${id}-title`}>
+    <form className="admin-form" onSubmit={submit} noValidate>
+      <label className="field-label" htmlFor={`${id}-title`}>
         New playlist title
       </label>
-      <input id={`${id}-title`} className="playlists-input" value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
-      <label className="playlists-label" htmlFor={`${id}-description`}>
-        Description <span className="playlists-muted">(optional)</span>
+      <input id={`${id}-title`} className="input" value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
+      <label className="field-label" htmlFor={`${id}-description`}>
+        Description <span className="muted">(optional)</span>
       </label>
       <textarea
         id={`${id}-description`}
-        className="playlists-input"
+        className="input"
         rows={2}
         maxLength={5000}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
       {error && (
-        <p className="playlists-error" role="alert">
+        <p className="alert-error" role="alert">
           {error}
         </p>
       )}
@@ -165,23 +164,23 @@ function PlaylistEditor({
   }
 
   return (
-    <article className="playlist" aria-labelledby={`${id}-name`}>
-      <h3 id={`${id}-name`} className="playlist-name">
+    <article className="admin-item" aria-labelledby={`${id}-name`}>
+      <h3 id={`${id}-name`} className="admin-item-name">
         {playlist.title}
       </h3>
-      {playlist.description && <p className="playlists-muted">{playlist.description}</p>}
+      {playlist.description && <p className="muted">{playlist.description}</p>}
 
       {playlist.videos.length === 0 ? (
-        <p className="playlists-muted">No videos yet.</p>
+        <p className="muted">No videos yet.</p>
       ) : (
-        <ol className="playlist-videos">
+        <ol className="admin-ordered">
           {playlist.videos.map((video, i) => (
-            <li key={video.id} className="playlist-video">
-              <span className="playlist-video-title">
+            <li key={video.id} className="admin-ordered-item">
+              <span className="admin-ordered-title">
                 {video.title}
-                {video.status === 'draft' && <span className="playlist-draft"> (draft: hidden until published)</span>}
+                {video.status === 'draft' && <span className="muted-inline"> (draft: hidden until published)</span>}
               </span>
-              <span className="playlist-video-actions">
+              <span className="admin-actions">
                 <button
                   type="button"
                   className="btn btn-quiet btn-small"
@@ -217,17 +216,17 @@ function PlaylistEditor({
 
       {addable.length > 0 && (
         <form
-          className="playlist-add"
+          className="admin-form"
           onSubmit={(e) => {
             e.preventDefault()
             if (choice) void act(() => addToPlaylist(playlist.id, Number(choice))).then(() => setChoice(''))
           }}
         >
-          <label className="playlists-label" htmlFor={`${id}-add`}>
+          <label className="field-label" htmlFor={`${id}-add`}>
             Add a video
           </label>
-          <div className="playlist-add-row">
-            <select id={`${id}-add`} className="playlists-input" value={choice} onChange={(e) => setChoice(e.target.value)}>
+          <div className="admin-inline">
+            <select id={`${id}-add`} className="input" value={choice} onChange={(e) => setChoice(e.target.value)}>
               <option value="">Choose a video…</option>
               {addable.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -244,7 +243,7 @@ function PlaylistEditor({
       )}
 
       {error && (
-        <p className="playlists-error" role="alert">
+        <p className="alert-error" role="alert">
           {error}{' '}
           <button type="button" className="btn btn-quiet btn-small" onClick={onStale}>
             Reload
@@ -252,10 +251,10 @@ function PlaylistEditor({
         </p>
       )}
 
-      <div className="playlist-delete">
+      <div className="admin-actions">
         {confirmDelete ? (
           <>
-            <p className="playlist-confirm">Delete this playlist? Its videos stay on the channel.</p>
+            <p className="admin-confirm">Delete this playlist? Its videos stay on the channel.</p>
             <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => void remove()}>
               Yes, delete playlist
             </button>{' '}

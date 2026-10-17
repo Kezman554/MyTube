@@ -1,0 +1,146 @@
+/*
+ * Shared page layout, form fields and messages, used by every page inside the shell.
+ * Phone first; wider screens get more breathing room. Values come from tokens.css only.
+ */
+
+.page {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: grid;
+  gap: 24px;
+}
+
+.page-title {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* The channel and playlist grids run wider, lined up with the top bar's 48px margin. */
+.page-wide {
+  max-width: 1280px;
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 36px 48px 64px;
+  }
+
+  .page-title {
+    font-size: 1.375rem;
+  }
+}
+
+.panel {
+  padding: 20px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+/* Something waiting for the admin: magenta, as DESIGN.md gives it. */
+.panel-attention {
+  border-color: var(--attention);
+}
+
+.panel-title {
+  margin: 0 0 16px;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.stack-tight {
+  display: grid;
+  gap: 6px;
+}
+
+.stack-tight > p {
+  margin: 0;
+}
+
+.muted {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.muted-inline {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+/* A 16:9 picture frame for thumbnails; the banner colour shows when there is no picture. */
+.thumb {
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--banner);
+  border: var(--border-width) solid var(--border);
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.field-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--text);
+  background: var(--ground);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+}
+
+textarea.input {
+  resize: vertical;
+}
+
+.input:focus-visible {
+  outline: var(--border-width) solid var(--link);
+  outline-offset: var(--border-width);
+}
+
+.alert-error,
+.alert-ok {
+  margin: 0;
+  padding: 8px 12px;
+  border: var(--border-width) solid var(--danger-outline);
+  border-radius: var(--radius);
+  color: var(--danger-text);
+  overflow-wrap: anywhere;
+}
+
+.alert-ok {
+  color: var(--text);
+  border-color: var(--positive);
+}
+
+.alert-error > p {
+  margin: 0 0 8px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
