@@ -7,6 +7,14 @@
     <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>MyTube</title>
+    <script>
+      // Light or dark chosen on this device (src/lib/theme.ts), set before the first paint so a page
+      // never flashes the other mode. No choice, or storage blocked: tokens.css follows the device.
+      try {
+        var theme = localStorage.getItem('mytube-theme')
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

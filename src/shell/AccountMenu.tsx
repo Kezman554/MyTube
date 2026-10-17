@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
 import type { User } from '../auth/api'
 import { canUpload } from '../auth/MeContext'
+import { useTheme } from '../lib/theme'
+import { MoonMark, SunMark } from './Pixels'
 
 const ROLE_NAMES = { admin: 'Admin', creator: 'Creator', viewer: 'Viewer' } as const
 
@@ -13,6 +15,7 @@ export function AccountMenu({ user }: { user: User }) {
   const id = useId()
   const root = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
+  const { theme, toggle } = useTheme()
 
   // Close on a click or tap anywhere outside the menu.
   useEffect(() => {
@@ -53,6 +56,19 @@ export function AccountMenu({ user }: { user: User }) {
             <span className="account-name">{user.username}</span>
             <span className="muted">{ROLE_NAMES[user.role]}</span>
           </p>
+          {/* Shows the mode you're in; pressing it switches to the other and remembers it on this device. */}
+          <div className="account-theme">
+            <span className="muted">Mode</span>
+            <button
+              type="button"
+              className="btn btn-quiet btn-small"
+              aria-label={theme === 'dark' ? 'Dark mode. Switch to light mode' : 'Light mode. Switch to dark mode'}
+              onClick={toggle}
+            >
+              {theme === 'dark' ? <MoonMark size={16} /> : <SunMark size={16} />}
+              {theme === 'dark' ? 'Dark' : 'Light'}
+            </button>
+          </div>
           <ul className="account-links">
             <li>
               <Link to="/" onClick={close}>

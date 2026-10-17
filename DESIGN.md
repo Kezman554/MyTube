@@ -7,7 +7,7 @@ Canvas: https://claude.ai/artifact/Xy4UU9XrhpfarQgpaU4YKx (direction F, chosen b
 - Display: arbitrary (viewers' own phones, tablets and laptops), so build with margin rather than tuning. The creator uploads from a computer.
 - Use: a phone or laptop in hand, on a sofa or at a desk, with attention on the video
 - Looked at most: the video grid on the channel page; on the watch page, the player
-- Modes: light and dark, following the device setting (`prefers-color-scheme`); no in-app choice
+- Modes: light and dark. Until someone chooses, the site follows the device setting (`prefers-color-scheme`), live. Anyone signed in can switch with the **light/dark toggle** in the account menu: it shows the mode you're in and switches to the other. The choice is a device preference, not an account setting: it is kept in that browser's localStorage only (never on the server), outlives signing out, and from then on wins over the device setting on that device.
 
 ## Direction
 The creator's own channel identity, CrAzYeNdErMaN, as the look: the Enderman's End. Near-black and Ender purple in dark mode; pale End stone in light mode. YouTube's structure (channel page, grid, watch page) in a look of its own. Drawn from scratch: no Minecraft logos, textures or other game assets.
@@ -18,6 +18,10 @@ The creator's own channel identity, CrAzYeNdErMaN, as the look: the Enderman's E
 - The channel name is always written **CrAzYeNdErMaN**, in alternating capitals.
 
 ## Tokens
+
+Light is the base. Dark applies in exactly two cases: the device prefers dark and nobody has chosen on this device (`@media (prefers-color-scheme: dark)` on `:root:not([data-theme="light"])`), or `data-theme="dark"` is set on `<html>`, whatever the device says. A choice sets `data-theme="light"` or `"dark"` on `<html>`; an inline script in `index.html` sets it from localStorage before the first paint, so a page never flashes the other mode. Every localStorage read and write is wrapped so blocked storage still renders the site (the toggle then lasts for that page only).
+
+There is one set of dark values. In `tokens.css` each colour that changes is written once per mode, side by side (`--dark-ground: var(--is-dark) #0E0A14;` then `--ground: var(--dark-ground, #EDEBC4);`), and the two cases above only flip the `--is-dark` switch. `tests/tokens.test.ts` checks the pairs are complete.
 
 | Role | Dark | Light |
 |---|---|---|
@@ -59,7 +63,7 @@ The End stone texture is pure CSS: layered `conic-gradient` squares at prime-num
 
 ## Enforcement
 - No colour, font or radius literal value outside `src/styles/tokens.css`: hex, `rgb()`/`hsl()`, a quoted font name in `font`/`font-family`, or a `font-family`/`border-radius` value that is not `var(--…)`. Property names are fine; `var(--…)` is fine everywhere, including React inline styles (`fontFamily`, `borderRadius`). Check: `grep -rnE "#[0-9a-fA-F]{3,8}\b|(rgb|hsl)a?\(|\bfont(-family|Family)?[[:space:]]*:[^;'\"]*['\"]([^v]|v[^a]|va[^r]|var[^(])|(font-family|border-radius)[[:space:]]*:[[:space:]]*([^v[:space:]]|v[^a]|va[^r]|var[^(])|borderRadius[[:space:]]*:[[:space:]]*(['\"]([^v]|v[^a]|va[^r]|var[^(])|[0-9])" src | grep -v "src/styles/tokens.css"` returns nothing.
-- Tokens are CSS custom properties, switched by `@media (prefers-color-scheme: dark)`. Components reference roles, never values.
+- Tokens are CSS custom properties, switched as described under Tokens: the device setting until a choice is made, then `data-theme` on `<html>`. Nothing outside `tokens.css` tests the mode (no `prefers-color-scheme` or `data-theme` in component CSS). Components reference roles, never values.
 
 ## Icon
 **A pixel slice of pizza with dripping cheese, on no background** (the creator's pick, icon round 2, 16 Oct 2026). One source drawing, `public/icon.svg`, generates every icon (`npm run icons` writes the PNGs to `public/`): the favicon (SVG and PNG), the apple-touch icon and any manifest icons. A 200 response proves nothing, because the SPA catch-all returns `index.html`, so check the content type.

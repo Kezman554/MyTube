@@ -162,6 +162,21 @@
   border-top: var(--border-width) solid var(--divider);
 }
 
+/* Light/dark toggle: one row under who you are */
+.account-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: var(--border-width) solid var(--divider);
+}
+
+.pixel-mode {
+  flex: none;
+  fill: currentColor;
+}
+
 /* Pixel marks */
 
 .pixel-logo-block {
