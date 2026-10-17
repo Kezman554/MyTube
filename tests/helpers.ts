@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { convertV4MiniflareOptions, Miniflare } from 'miniflare'
 import type { Env, Identity } from '../functions/lib/env'
 
-// A Miniflare-backed local D1 with migrations/0001_init.sql applied. Dispose mf in afterAll.
-export async function createTestDb(name: string) {
+// A Miniflare-backed local D1 with every migration applied, plus a local R2 bucket when asked.
+// Dispose mf in afterAll.
+export async function createTestDb(name: string, opts: { r2?: boolean } = {}) {
   const mf = new Miniflare(
     convertV4MiniflareOptions({
       name,
@@ -11,14 +12,19 @@ export async function createTestDb(name: string) {
       modules: true,
       script: 'export default { fetch: () => new Response() }',
       d1Databases: ['DB'],
+      r2Buckets: opts.r2 ? ['MEDIA'] : [],
     }),
   )
   const db = (await mf.getD1Database('DB')) as unknown as D1Database
-  const schema = readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8')
-  for (const statement of schema.replace(/^--.*$/gm, '').split(';')) {
-    if (statement.trim()) await db.prepare(statement).run()
+  const dir = new URL('../migrations/', import.meta.url)
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
+    const sql = readFileSync(new URL(file, dir), 'utf8')
+    for (const statement of sql.replace(/^--.*$/gm, '').split(';')) {
+      if (statement.trim()) await db.prepare(statement).run()
+    }
   }
-  return { mf, db }
+  const bucket = opts.r2 ? ((await mf.getR2Bucket('MEDIA')) as unknown as R2Bucket) : ({} as R2Bucket)
+  return { mf, db, bucket }
 }
 
 type Handler = (context: never) => Response | Promise<Response>

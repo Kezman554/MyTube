@@ -126,6 +126,39 @@ export function updateUser(db: D1Database, id: number, changes: UserChanges) {
   )
 }
 
+// Uploads (in-progress multipart uploads, see migrations/0002_uploads.sql)
+
+export interface Upload {
+  upload_id: string
+  r2_key: string
+  user_id: number
+  filename: string
+  content_type: string
+  size: number
+  created_at: string
+}
+
+export function createUpload(db: D1Database, upload: Omit<Upload, 'created_at'>) {
+  return run(
+    db,
+    'INSERT INTO uploads (upload_id, r2_key, user_id, filename, content_type, size) VALUES (?, ?, ?, ?, ?, ?)',
+    upload.upload_id,
+    upload.r2_key,
+    upload.user_id,
+    upload.filename,
+    upload.content_type,
+    upload.size,
+  )
+}
+
+export function getUpload(db: D1Database, uploadId: string) {
+  return first<Upload>(db, 'SELECT * FROM uploads WHERE upload_id = ?', uploadId)
+}
+
+export function deleteUpload(db: D1Database, uploadId: string) {
+  return run(db, 'DELETE FROM uploads WHERE upload_id = ?', uploadId)
+}
+
 // Videos
 
 export function getVideo(db: D1Database, id: number) {

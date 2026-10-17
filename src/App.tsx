@@ -1,12 +1,22 @@
 import { AuthGate } from './auth/AuthGate'
+import { canUpload, useMe } from './auth/MeContext'
+import { Uploader } from './upload/Uploader'
 import './App.css'
+
+function Home() {
+  const { user } = useMe()
+  return (
+    <main className="placeholder">
+      <h1 className="wordmark">MyTube</h1>
+      {canUpload(user) && <Uploader />}
+    </main>
+  )
+}
 
 function App() {
   return (
     <AuthGate>
-      <main className="placeholder">
-        <h1 className="wordmark">MyTube</h1>
-      </main>
+      <Home />
     </AuthGate>
   )
 }

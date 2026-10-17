@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { fetchMe, type Me } from './api'
 import { GateMessage, RegisterPage, RemovedPage, WaitingPage } from './GatePages'
+import { MeContext } from './MeContext'
 import './gate.css'
 
 type GateState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; me: Me }
@@ -44,6 +45,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
     case 'removed':
       return <RemovedPage />
     case 'approved':
-      return <>{children}</>
+      return <MeContext.Provider value={me}>{children}</MeContext.Provider>
   }
 }

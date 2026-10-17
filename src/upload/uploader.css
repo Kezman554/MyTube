@@ -1,0 +1,130 @@
+/* Video uploader. Values come from tokens.css only. */
+
+.uploader {
+  width: 100%;
+  max-width: 36rem;
+  padding: 24px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+}
+
+.uploader-title {
+  margin: 0 0 16px;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.uploader-file {
+  margin: 0 0 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.uploader-hint,
+.uploader-meta {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.uploader-meta {
+  margin-top: 8px;
+}
+
+.uploader-note {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.uploader-done,
+.uploader-error {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border: var(--border-width) solid var(--positive);
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+
+.uploader-error {
+  color: var(--danger-text);
+  border-color: var(--danger-outline);
+}
+
+.uploader-error p {
+  margin: 0;
+}
+
+/* The bar fills in square blocks: the one gradient DESIGN.md allows besides the End stone. */
+.uploader-bar {
+  height: 20px;
+  padding: 2px;
+  background: var(--ground);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+}
+
+.uploader-bar-fill {
+  height: 100%;
+  background: repeating-linear-gradient(
+    to right,
+    var(--accent-fill) 0 10px,
+    var(--ground) 10px 12px
+  );
+  transition: width 200ms steps(4);
+}
+
+.uploader-button {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 12px 16px;
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--on-accent);
+  background: var(--accent-fill);
+  border: var(--border-width) solid var(--accent-fill);
+  border-radius: var(--radius);
+  box-shadow: inset calc(-1 * var(--bevel-size)) calc(-1 * var(--bevel-size)) 0 var(--accent-bevel);
+  cursor: pointer;
+}
+
+.uploader-button:active {
+  box-shadow: inset var(--bevel-size) var(--bevel-size) 0 var(--accent-bevel);
+}
+
+.uploader-button:focus-visible,
+.uploader-pick:focus-within {
+  outline: var(--border-width) solid var(--link);
+  outline-offset: var(--border-width);
+}
+
+/* Destructive: danger outline plus explicit wording, never colour alone. */
+.uploader-button-danger {
+  color: var(--danger-text);
+  background: var(--surface);
+  border-color: var(--danger-outline);
+  box-shadow: inset calc(-1 * var(--bevel-size)) calc(-1 * var(--bevel-size)) 0 var(--surface-bevel);
+}
+
+.uploader-button-danger:active {
+  box-shadow: inset var(--bevel-size) var(--bevel-size) 0 var(--surface-bevel);
+}
+
+/* The real file input stays in the label for keyboard and screen readers, but out of sight. */
+.uploader-pick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uploader-bar-fill {
+    transition: none;
+  }
+}
