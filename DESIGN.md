@@ -26,7 +26,7 @@ The creator's own channel identity, CrAzYeNdErMaN, as the look: the Enderman's E
 | border | `#3B2A52` | `#BDB585` |
 | divider | `#2A1F3B` | `#CFC99A` |
 | text | `#F1E9FF` | `#1E1530` |
-| text-secondary | `#B5A6CC` | `#5B4D70` |
+| text-secondary | `#B5A6CC` | `#443A54` |
 | accent-fill / on-accent | `#B45CFF` / `#0E0A14` | `#7A2FC2` / `#FFFFFF` |
 | accent-bevel (inset shadow on a filled button) | `#7A2FC2` | `#4E1A85` |
 | surface-bevel | `#120D1A` | `#D6D09E` |
