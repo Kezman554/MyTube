@@ -179,13 +179,22 @@ export function getVideoByKey(db: D1Database, key: string) {
   return first<Video>(db, 'SELECT * FROM videos WHERE r2_key = ?', key)
 }
 
+export interface VideoCounts {
+  view_count: number
+  like_count: number
+}
+
+// Select-list fragment adding each video's view and like counts (both tables are indexed on video_id).
+export const VIDEO_COUNTS = `(SELECT COUNT(*) FROM views WHERE views.video_id = videos.id) AS view_count,
+  (SELECT COUNT(*) FROM likes WHERE likes.video_id = videos.id) AS like_count`
+
 // What a user sees on the channel: every published video, plus their own drafts (newest first,
-// drafts by when they were saved). Matches canSee() in lib/videos.ts, which checks single videos;
-// only the admin's review queue (listDrafts) goes further.
+// drafts by when they were saved), each with its view and like counts. Matches canSee() in
+// lib/videos.ts, which checks single videos; only the admin's review queue (listDrafts) goes further.
 export function listVisibleVideos(db: D1Database, userId: number) {
-  return all<Video>(
+  return all<Video & VideoCounts>(
     db,
-    `SELECT * FROM videos WHERE status = 'published' OR uploaded_by = ?
+    `SELECT videos.*, ${VIDEO_COUNTS} FROM videos WHERE status = 'published' OR uploaded_by = ?
      ORDER BY COALESCE(published_at, created_at) DESC, id DESC`,
     userId,
   )

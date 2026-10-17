@@ -1,4 +1,4 @@
-import { deleteVideoRow, getUploadByKey, getVideo, getVideoByKey, run, type User, type Video } from './db'
+import { deleteVideoRow, getUploadByKey, getVideo, getVideoByKey, run, type User, type Video, type VideoCounts } from './db'
 import { deleteObject, newThumbnailKey, VIDEO_PREFIX } from './storage'
 import { MiB } from './uploads'
 
@@ -14,8 +14,10 @@ export function videoError(status: number, error: string, message?: string) {
 
 // What the API says about a video. R2 keys stay server-side; the thumbnail is fetched by video id,
 // with ?v= changing whenever the thumbnail does, so browsers can cache each version for good.
-export function videoJson(video: Video) {
+// Lists that select VIDEO_COUNTS also carry view_count and like_count.
+export function videoJson(video: Video & Partial<VideoCounts>) {
   return {
+    ...(video.view_count !== undefined ? { view_count: video.view_count, like_count: video.like_count ?? 0 } : {}),
     id: video.id,
     title: video.title,
     description: video.description,

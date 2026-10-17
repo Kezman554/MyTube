@@ -18,6 +18,9 @@ export interface Video {
   created_at: string
   published_at: string | null
   thumbnail_url: string | null
+  // On lists (the channel and playlist pages) only.
+  view_count?: number
+  like_count?: number
 }
 
 export interface PlaylistSummary {

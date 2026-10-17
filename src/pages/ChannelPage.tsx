@@ -89,10 +89,16 @@ export function VideoCard({ video }: { video: Video }) {
       <Thumb url={video.thumbnail_url} />
       <span className="card-title">{video.title}</span>
       <span className="card-meta">
-        {video.status === 'draft' ? <span className="chip">Draft</span> : timeAgo(video.published_at ?? video.created_at)}
+        {video.status === 'draft' ? <span className="chip">Draft</span> : videoMeta(video)}
       </span>
     </Link>
   )
+}
+
+// "23 views · 3 weeks ago", as on the canvas.
+function videoMeta(video: Video) {
+  const when = timeAgo(video.published_at ?? video.created_at)
+  return video.view_count === undefined ? when : `${plurals(video.view_count, 'view')} · ${when}`
 }
 
 export function Thumb({ url }: { url: string | null }) {

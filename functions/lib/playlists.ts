@@ -1,4 +1,4 @@
-import { all, first, run, type Playlist, type Video } from './db'
+import { all, first, run, VIDEO_COUNTS, type Playlist, type Video, type VideoCounts } from './db'
 import { DESCRIPTION_MAX, thumbnailUrl, TITLE_MAX, videoError, videoJson } from './videos'
 
 // Playlists: an ordered list of videos, managed by the admin. Positions run 1..n within a playlist;
@@ -15,9 +15,9 @@ export function loadPlaylist(db: D1Database, id: string | string[] | undefined) 
 
 // The videos in a playlist, in order. Viewers get published videos only.
 export function playlistVideos(db: D1Database, playlistId: number, publishedOnly: boolean) {
-  return all<Video & { position: number }>(
+  return all<Video & VideoCounts & { position: number }>(
     db,
-    `SELECT videos.*, playlist_videos.position FROM playlist_videos
+    `SELECT videos.*, ${VIDEO_COUNTS}, playlist_videos.position FROM playlist_videos
      JOIN videos ON videos.id = playlist_videos.video_id
      WHERE playlist_videos.playlist_id = ? ${publishedOnly ? "AND videos.status = 'published'" : ''}
      ORDER BY playlist_videos.position, videos.id`,
