@@ -42,8 +42,8 @@
   );
   --dark-surface: var(--is-dark) #1A1424;
   --surface: var(--dark-surface, #F7F5DC);
-  --dark-border: var(--is-dark) #3B2A52;
-  --border: var(--dark-border, #BDB585);
+  --dark-border: var(--is-dark) #8362AF;
+  --border: var(--dark-border, #807745);
   --dark-divider: var(--is-dark) #2A1F3B;
   --divider: var(--dark-divider, #CFC99A);
   --dark-text: var(--is-dark) #F1E9FF;
@@ -59,18 +59,20 @@
   --dark-surface-bevel: var(--is-dark) #120D1A;
   --surface-bevel: var(--dark-surface-bevel, #D6D09E);
   --dark-link: var(--is-dark) #C98BFF;
-  --link: var(--dark-link, #6A24AD);
+  --link: var(--dark-link, #571D8D);
   --dark-positive: var(--is-dark) #7ED98A;
-  --positive: var(--dark-positive, #2E7D3E);
+  --positive: var(--dark-positive, #1A4723);
   --dark-warning: var(--is-dark) #FFB86B;
-  --warning: var(--dark-warning, #9A5B00);
+  --warning: var(--dark-warning, #5A3500);
   --dark-danger-outline: var(--is-dark) #FF7A9C;
   --danger-outline: var(--dark-danger-outline, #B3264A);
   --dark-danger-text: var(--is-dark) #FF9CB5;
-  --danger-text: var(--dark-danger-text, #B3264A);
+  --danger-text: var(--dark-danger-text, #771931);
+  /* Light: something waiting, and the Enderman's eyes. Dark enough for the page, bright enough on the face. */
+  --dark-attention: var(--is-dark) #E070FF;
+  --attention: var(--dark-attention, #C500FC);
 
   /* Both modes */
-  --attention: #E070FF;
   /* The banner and avatar face stay dark on purpose */
   --banner: #1C1230;
   --avatar-face: #050308;

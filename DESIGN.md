@@ -27,18 +27,18 @@ There is one set of dark values. In `tokens.css` each colour that changes is wri
 |---|---|---|
 | ground | `#0E0A14` | `#EDEBC4` + End stone texture |
 | surface (cards, inputs, inactive buttons) | `#1A1424` | `#F7F5DC` |
-| border | `#3B2A52` | `#BDB585` |
+| border (inputs, buttons, chips, panels) | `#8362AF` | `#807745` |
 | divider | `#2A1F3B` | `#CFC99A` |
 | text | `#F1E9FF` | `#1E1530` |
 | text-secondary | `#B5A6CC` | `#443A54` |
 | accent-fill / on-accent | `#B45CFF` / `#0E0A14` | `#7A2FC2` / `#FFFFFF` |
 | accent-bevel (inset shadow on a filled button) | `#7A2FC2` | `#4E1A85` |
 | surface-bevel | `#120D1A` | `#D6D09E` |
-| link | `#C98BFF` | `#6A24AD` |
-| attention (pending, counts, the eyes) | `#E070FF` | `#E070FF` |
-| positive (active) | `#7ED98A` | `#2E7D3E` *(not drawn on canvas)* |
-| warning (muted) | `#FFB86B` | `#9A5B00` *(not drawn on canvas)* |
-| danger outline / danger text | `#FF7A9C` / `#FF9CB5` | `#B3264A` / `#B3264A` *(not drawn on canvas)* |
+| link | `#C98BFF` | `#571D8D` |
+| attention (pending, counts, the eyes) | `#E070FF` | `#C500FC` |
+| positive (active) | `#7ED98A` | `#1A4723` |
+| warning (muted) | `#FFB86B` | `#5A3500` |
+| danger outline / danger text | `#FF7A9C` / `#FF9CB5` | `#B3264A` / `#771931` |
 | banner and avatar face (both modes) | `#1C1230`, `#050308` | same |
 
 The End stone texture is pure CSS: layered `conic-gradient` squares at prime-number tile sizes over the ground, in `#DAD6A3`, `#CFCA94`, `#DFDBAA`, `#BDB77F`, `#C6C08A` and `#F6F4D6`. The source is on the canvas's light-mode boards.
@@ -58,8 +58,10 @@ The End stone texture is pure CSS: layered `conic-gradient` squares at prime-num
 - **Deliberate exceptions, don't "fix" them:** the banner and the avatar's black face stay dark in light mode, and the purple particles are decoration only. Particles never sit under body text.
 
 ## Contrast
-- Text 4.5:1 and non-text 3:1 in both modes, with a margin, not a bare pass. Measured by script, never by eye. The canvas values have not been measured yet.
-- No coloured text on translucent tints. Text on the End stone texture is checked against its darkest speck, `#BDB77F`.
+- Text 4.5:1 and non-text 3:1 in both modes, with a margin, not a bare pass (aim for 5:1 and 3.5:1). Measured by script, never by eye: `npm run contrast` (`scripts/contrast-audit.mjs`, also run by `npm test`) lists every pairing the components use, fails under a floor and flags anything under the margin. A new colour use in a component gets a line in its `PAIRINGS`.
+- No coloured text on translucent tints. Text on the End stone texture is checked against every colour in it, so its darkest speck, `#BDB77F`, decides. Non-text on the texture (borders, outlines, fills, much larger than a speck) is checked against the ground colour.
+- Dividers, bevels and banner particles are decoration and are not held to 3:1. Anything that marks out a control or its state uses `border`, `link`, `accent-fill`, `danger-outline`, `attention` or `positive`, which are.
+- Measured 17 Oct 2026 (light values changed that day from the canvas: border `#BDB585`, link `#6A24AD`, attention `#E070FF`, positive `#2E7D3E`, warning `#9A5B00`, danger text `#B3264A`; dark border `#3B2A52`). Lowest in use: text 5.18:1 (light text-secondary on the darkest speck), non-text 3.62:1 (light attention on the ground). Light positive and warning are 5.20:1 and 5.27:1 as text on the darkest speck, danger text 5.21:1, danger outline 5.25:1 on the ground. The light attention is also the Enderman's eyes: 4.67:1 on the black face.
 
 ## Enforcement
 - No colour, font or radius literal value outside `src/styles/tokens.css`: hex, `rgb()`/`hsl()`, a quoted font name in `font`/`font-family`, or a `font-family`/`border-radius` value that is not `var(--…)`. Property names are fine; `var(--…)` is fine everywhere, including React inline styles (`fontFamily`, `borderRadius`). Check: `grep -rnE "#[0-9a-fA-F]{3,8}\b|(rgb|hsl)a?\(|\bfont(-family|Family)?[[:space:]]*:[^;'\"]*['\"]([^v]|v[^a]|va[^r]|var[^(])|(font-family|border-radius)[[:space:]]*:[[:space:]]*([^v[:space:]]|v[^a]|va[^r]|var[^(])|borderRadius[[:space:]]*:[[:space:]]*(['\"]([^v]|v[^a]|va[^r]|var[^(])|[0-9])" src | grep -v "src/styles/tokens.css"` returns nothing.

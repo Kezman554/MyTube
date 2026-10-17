@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "icons": "node scripts/icons.mjs",
+    "contrast": "node scripts/contrast-audit.mjs",
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply mytube-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply mytube-db --remote",
