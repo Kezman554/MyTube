@@ -116,6 +116,29 @@ describe('middleware', () => {
     expect(context.data.user).toMatchObject({ email: ADMIN, role: 'admin', status: 'approved' })
   })
 
+  it('matches ADMIN_EMAIL ignoring case and stray whitespace, on either side', async () => {
+    for (const [configured, inToken] of [
+      ['Boss@Example.COM', 'boss@example.com'],
+      ['chief@example.com', 'Chief@EXAMPLE.com'],
+      [' Head@Example.com\n', 'HEAD@example.com'],
+    ]) {
+      const { result, context } = call(middleware, {
+        headers: { 'Cf-Access-Jwt-Assertion': await token(inToken) },
+        env: { ADMIN_EMAIL: configured },
+      })
+      expect(await result).toBe(NEXT)
+      expect(context.data.user, `${configured} vs ${inToken}`).toMatchObject({ email: inToken.toLowerCase(), role: 'admin', status: 'approved' })
+    }
+  })
+
+  it('does not make a lookalike of ADMIN_EMAIL the admin', async () => {
+    for (const lookalike of ['admin@example.co', 'xadmin@example.com', 'admin@example.com.evil.net']) {
+      const { result, context } = call(middleware, { headers: { 'Cf-Access-Jwt-Assertion': await token(lookalike) } })
+      expect(await result).toBe(NEXT)
+      expect(context.data.user).toBeNull()
+    }
+  })
+
   it('honours DEV_EMAIL on localhost without a token', async () => {
     const { result, context } = call(middleware, {
       url: 'http://localhost:8788/api/me',
@@ -127,6 +150,26 @@ describe('middleware', () => {
 
   it('ignores DEV_EMAIL on any other host', async () => {
     const { result } = call(middleware, { env: { DEV_EMAIL: ADMIN } })
+    expect((await result).status).toBe(401)
+  })
+
+  it('ignores DEV_EMAIL on hosts that only look local', async () => {
+    for (const url of [
+      'https://localhost.mytube-672.pages.dev/api/me',
+      'https://mytube-672.pages.dev/api/me?host=localhost',
+      'https://127.0.0.1.nip.io/api/me',
+      'http://localhost.:8788/api/me',
+      'http://0.0.0.0:8788/api/me',
+      'https://mytube-672.pages.dev/localhost/api/me',
+    ]) {
+      const { result, context } = call(middleware, { url, env: { DEV_EMAIL: ADMIN } })
+      expect((await result).status, url).toBe(401)
+      expect(context.next).not.toHaveBeenCalled()
+    }
+  })
+
+  it('ignores a Host header claiming localhost: the request URL decides', async () => {
+    const { result } = call(middleware, { headers: { Host: 'localhost', 'X-Forwarded-Host': 'localhost' }, env: { DEV_EMAIL: ADMIN } })
     expect((await result).status).toBe(401)
   })
 })

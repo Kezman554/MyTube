@@ -16,7 +16,9 @@ export const identify: ApiFunction = async (context) => {
   }
 
   let user = await getUserByEmail(env.DB, email)
-  if (!user && env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase()) {
+  // The token's email is already lowercased; ADMIN_EMAIL is normalised the same way, so a capitalised
+  // value or a stray space or line break pasted into the dashboard still matches.
+  if (!user && env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.trim().toLowerCase()) {
     user = await createUser(env.DB, email, email.split('@')[0], 'admin', 'approved')
   }
 
