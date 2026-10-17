@@ -14,6 +14,7 @@ Built with Vite + React + TypeScript on Cloudflare Pages, Pages Functions, R2, D
 - `npm run dev` - Run the Vite frontend
 - `npx wrangler pages dev` - Run the full local stack (API, D1, R2)
 - `npm test` - Run tests
+- `npm run deploy` - Build and deploy to production (Pages project mytube, branch main). Run `npm run db:migrate:remote` first when there are new migrations
 - `npm run icons` - Regenerate the PNG icons in public/ from public/icon.svg (commit the results)
 
 ## Git

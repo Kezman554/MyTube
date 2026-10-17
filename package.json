@@ -11,7 +11,8 @@
     "icons": "node scripts/icons.mjs",
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply mytube-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply mytube-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply mytube-db --remote",
+    "deploy": "npm run build && wrangler pages deploy --branch main"
   },
   "dependencies": {
     "@fontsource/press-start-2p": "^5.3.0",
