@@ -42,6 +42,9 @@ export async function loadVideo(db: D1Database, id: string | string[] | undefine
   return Number.isSafeInteger(n) && n > 0 ? getVideo(db, n) : null
 }
 
+// A repeat view from the same user inside this window is not counted again.
+export const VIEW_WINDOW_MINUTES = 30
+
 // Removes a video for good: its record (likes, comments and views cascade), its upload row, then its
 // files. The record goes first, so a failure part-way leaves at worst a file the leftovers list shows.
 export async function deleteVideoEverywhere(db: D1Database, bucket: R2Bucket, video: Video) {

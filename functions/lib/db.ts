@@ -200,6 +200,32 @@ export function listVisibleVideos(db: D1Database, userId: number) {
   )
 }
 
+export function getVideoWithCounts(db: D1Database, id: number) {
+  return first<Video & VideoCounts>(db, `SELECT videos.*, ${VIDEO_COUNTS} FROM videos WHERE id = ?`, id)
+}
+
+// Records a view unless this user already has one for this video in the last `windowMinutes`.
+// Check and insert are one statement, so two requests arriving together can't both count.
+// Returns whether this view counted.
+export async function recordView(db: D1Database, videoId: number, userId: number, windowMinutes: number) {
+  const result = await run(
+    db,
+    `INSERT INTO views (video_id, user_id)
+     SELECT ?1, ?2 WHERE NOT EXISTS (
+       SELECT 1 FROM views WHERE video_id = ?1 AND user_id = ?2
+         AND created_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?3)
+     )`,
+    videoId,
+    userId,
+    `-${windowMinutes} minutes`,
+  )
+  return result.meta.changes > 0
+}
+
+export async function countViews(db: D1Database, videoId: number) {
+  return (await first<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM views WHERE video_id = ?', videoId))!.n
+}
+
 export function listDrafts(db: D1Database) {
   return all<Video>(db, "SELECT * FROM videos WHERE status = 'draft' ORDER BY created_at, id")
 }

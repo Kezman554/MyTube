@@ -18,7 +18,7 @@ export interface Video {
   created_at: string
   published_at: string | null
   thumbnail_url: string | null
-  // On lists (the channel and playlist pages) only.
+  // On lists and the watch page.
   view_count?: number
   like_count?: number
 }
@@ -44,6 +44,10 @@ export interface Orphan {
 export const listVideos = () => request('/api/videos', {}, (b: { videos: Video[] }) => b.videos)
 
 export const getVideo = (id: string) => request(`/api/videos/${encodeURIComponent(id)}`, {}, (b: { video: Video }) => b.video)
+
+// Counts a view (the server ignores repeats within its window, and drafts). -> the current count.
+export const recordView = (id: number) =>
+  request(`/api/videos/${id}/view`, { method: 'POST' }, (b: { counted: boolean; view_count: number }) => b)
 
 // The form carries key, title, description, thumbnail and (admin only) publish.
 export const createVideo = (form: FormData) =>
