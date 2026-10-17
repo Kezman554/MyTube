@@ -179,8 +179,34 @@ export function getVideoByKey(db: D1Database, key: string) {
   return first<Video>(db, 'SELECT * FROM videos WHERE r2_key = ?', key)
 }
 
-export function listPublishedVideos(db: D1Database) {
-  return all<Video>(db, "SELECT * FROM videos WHERE status = 'published' ORDER BY published_at DESC")
+// What a user sees on the channel: every published video, plus their own drafts (newest first,
+// drafts by when they were saved). Matches canSee() in lib/videos.ts, which checks single videos;
+// only the admin's review queue (listDrafts) goes further.
+export function listVisibleVideos(db: D1Database, userId: number) {
+  return all<Video>(
+    db,
+    `SELECT * FROM videos WHERE status = 'published' OR uploaded_by = ?
+     ORDER BY COALESCE(published_at, created_at) DESC, id DESC`,
+    userId,
+  )
+}
+
+export function listDrafts(db: D1Database) {
+  return all<Video>(db, "SELECT * FROM videos WHERE status = 'draft' ORDER BY created_at, id")
+}
+
+export function publishVideo(db: D1Database, id: number) {
+  return first<Video>(
+    db,
+    `UPDATE videos SET status = 'published', published_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+     WHERE id = ? AND status = 'draft' RETURNING *`,
+    id,
+  )
+}
+
+// Likes, comments, views and playlist entries go with it (ON DELETE CASCADE).
+export function deleteVideoRow(db: D1Database, id: number) {
+  return run(db, 'DELETE FROM videos WHERE id = ?', id)
 }
 
 export function createVideo(

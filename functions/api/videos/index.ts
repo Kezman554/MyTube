@@ -1,8 +1,15 @@
-import { createVideo, type VideoStatus } from '../../lib/db'
+import { createVideo, listVisibleVideos, type VideoStatus } from '../../lib/db'
 import type { ApiFunction } from '../../lib/env'
 import { requireRole } from '../../lib/guards'
 import { deleteObject, putObject } from '../../lib/storage'
 import { readText, readThumbnail, readVideoForm, resolveVideoKey, videoError, videoJson } from '../../lib/videos'
+
+// GET /api/videos -> { videos }: every published video, plus the caller's own drafts, newest first.
+// Approval is enforced by the /api gate.
+export const onRequestGet: ApiFunction = async ({ env, data }) => {
+  const videos = await listVisibleVideos(env.DB, data.user!.id)
+  return Response.json({ videos: videos.map(videoJson) })
+}
 
 // POST /api/videos, multipart/form-data:
 //   key          the R2 key from a completed /api/uploads upload (see resolveVideoKey)

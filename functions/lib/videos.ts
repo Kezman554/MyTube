@@ -1,5 +1,5 @@
-import { getUploadByKey, getVideoByKey, type User, type Video } from './db'
-import { newThumbnailKey, VIDEO_PREFIX } from './storage'
+import { deleteVideoRow, getUploadByKey, getVideo, getVideoByKey, run, type User, type Video } from './db'
+import { deleteObject, newThumbnailKey, VIDEO_PREFIX } from './storage'
 import { MiB } from './uploads'
 
 export const TITLE_MAX = 100
@@ -31,7 +31,22 @@ export function thumbnailVersion(key: string) {
   return key.slice(key.lastIndexOf('/') + 1, key.lastIndexOf('/') + 9)
 }
 
+export async function loadVideo(db: D1Database, id: string | string[] | undefined) {
+  const n = Number(id)
+  return Number.isSafeInteger(n) && n > 0 ? getVideo(db, n) : null
+}
+
+// Removes a video for good: its record (likes, comments and views cascade), its upload row, then its
+// files. The record goes first, so a failure part-way leaves at worst a file the leftovers list shows.
+export async function deleteVideoEverywhere(db: D1Database, bucket: R2Bucket, video: Video) {
+  await deleteVideoRow(db, video.id)
+  await run(db, 'DELETE FROM uploads WHERE r2_key = ?', video.r2_key)
+  await deleteObject(bucket, video.r2_key)
+  if (video.thumbnail_key) await deleteObject(bucket, video.thumbnail_key)
+}
+
 // Published videos are for every approved user; a draft only for the admin and its uploader.
+// listVisibleVideos() in db.ts applies the same rule to lists (less the admin's review queue).
 export function canSee(user: User, video: Video) {
   return video.status === 'published' || user.role === 'admin' || video.uploaded_by === user.id
 }

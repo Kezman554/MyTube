@@ -1,18 +1,24 @@
-import { getVideo, updateVideo, type VideoChanges } from '../../lib/db'
+import { updateVideo, type VideoChanges } from '../../lib/db'
 import type { ApiFunction } from '../../lib/env'
 import { requireRole } from '../../lib/guards'
 import { deleteObject, putObject } from '../../lib/storage'
-import { canEdit, canSee, readText, readThumbnail, readVideoForm, videoError, videoJson } from '../../lib/videos'
+import {
+  canEdit,
+  canSee,
+  deleteVideoEverywhere,
+  loadVideo,
+  readText,
+  readThumbnail,
+  readVideoForm,
+  videoError,
+  videoJson,
+} from '../../lib/videos'
 
-// Approval is enforced by the /api gate; this decides which approved users may see each video.
-async function load(db: D1Database, id: string | string[] | undefined) {
-  const n = Number(id)
-  return Number.isSafeInteger(n) && n > 0 ? getVideo(db, n) : null
-}
+// Approval is enforced by the /api gate; canSee decides which approved users may see each video.
 
 // GET /api/videos/:id -> { video }. Drafts are visible to the admin and their uploader only.
 export const onRequestGet: ApiFunction = async ({ env, data, params }) => {
-  const video = await load(env.DB, params.id)
+  const video = await loadVideo(env.DB, params.id)
   if (!video || !canSee(data.user!, video)) return videoError(404, 'not_found')
   return Response.json({ video: videoJson(video) })
 }
@@ -21,7 +27,7 @@ export const onRequestGet: ApiFunction = async ({ env, data, params }) => {
 // The admin may edit any video; a creator only their own drafts. -> { video }
 const patch: ApiFunction = async ({ request, env, data, params }) => {
   const user = data.user!
-  const video = await load(env.DB, params.id)
+  const video = await loadVideo(env.DB, params.id)
   // Someone who can't see a video gets 404 rather than learning it exists.
   if (!video || !canSee(user, video)) return videoError(404, 'not_found')
   if (!canEdit(user, video)) return videoError(403, 'forbidden', 'Only the admin can edit a published video.')
@@ -50,3 +56,13 @@ const patch: ApiFunction = async ({ request, env, data, params }) => {
 }
 
 export const onRequestPatch = [requireRole('creator'), patch]
+
+// DELETE /api/videos/:id (admin): removes any video, published or not, with its files. -> { ok: true }
+const remove: ApiFunction = async ({ env, params }) => {
+  const video = await loadVideo(env.DB, params.id)
+  if (!video) return videoError(404, 'not_found')
+  await deleteVideoEverywhere(env.DB, env.MEDIA, video)
+  return Response.json({ ok: true })
+}
+
+export const onRequestDelete = [requireRole('admin'), remove]
