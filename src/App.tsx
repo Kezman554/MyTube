@@ -1,4 +1,5 @@
 import { LeftoverUploads } from './admin/LeftoverUploads'
+import { Playlists } from './admin/Playlists'
 import { AuthGate } from './auth/AuthGate'
 import { canUpload, useMe } from './auth/MeContext'
 import { Uploader } from './upload/Uploader'
@@ -12,6 +13,7 @@ function Home() {
       <h1 className="wordmark">MyTube</h1>
       {isAdmin && <LeftoverUploads />}
       {canUpload(user) && <Uploader canPublish={isAdmin} />}
+      {isAdmin && <Playlists />}
     </main>
   )
 }

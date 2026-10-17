@@ -23,8 +23,12 @@ export function videoJson(video: Video) {
     uploaded_by: video.uploaded_by,
     created_at: video.created_at,
     published_at: video.published_at,
-    thumbnail_url: video.thumbnail_key ? `/api/thumbnails/${video.id}?v=${thumbnailVersion(video.thumbnail_key)}` : null,
+    thumbnail_url: video.thumbnail_key ? thumbnailUrl(video.id, video.thumbnail_key) : null,
   }
+}
+
+export function thumbnailUrl(videoId: number, thumbnailKey: string) {
+  return `/api/thumbnails/${videoId}?v=${thumbnailVersion(thumbnailKey)}`
 }
 
 export function thumbnailVersion(key: string) {
