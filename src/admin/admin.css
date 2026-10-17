@@ -1,4 +1,4 @@
-/* Admin page panels: leftover uploads and playlists. Panels, fields, buttons and alerts are shared
+/* Admin page panels: users, drafts, comments, leftover uploads and playlists. Panels, fields, buttons and alerts are shared
    (styles/layout.css, styles/buttons.css); this is only the lists inside them. */
 
 .admin-list {
@@ -89,4 +89,43 @@ h3.admin-item-name {
   width: auto;
   min-height: 36px;
   padding: 4px 10px;
+}
+
+/* Drafts: the preview player above the details on a phone, beside them on wider screens. */
+.draft-item {
+  gap: 12px;
+}
+
+.draft-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--avatar-face);
+}
+
+.draft-details {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
+
+.draft-details > p {
+  margin: 0;
+}
+
+.draft-description {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  max-height: 8.7em;
+  overflow-y: auto;
+}
+
+@media (min-width: 768px) {
+  .draft-item {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 20px;
+  }
 }

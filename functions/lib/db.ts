@@ -243,8 +243,13 @@ export async function countViews(db: D1Database, videoId: number) {
   return (await first<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM views WHERE video_id = ?', videoId))!.n
 }
 
+// The review queue, oldest first, with who uploaded each draft.
 export function listDrafts(db: D1Database) {
-  return all<Video>(db, "SELECT * FROM videos WHERE status = 'draft' ORDER BY created_at, id")
+  return all<Video & { uploader_username: string }>(
+    db,
+    `SELECT videos.*, users.username AS uploader_username FROM videos JOIN users ON users.id = videos.uploaded_by
+     WHERE videos.status = 'draft' ORDER BY videos.created_at, videos.id`,
+  )
 }
 
 export function publishVideo(db: D1Database, id: number) {

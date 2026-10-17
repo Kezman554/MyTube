@@ -1,6 +1,8 @@
 import type { Miniflare } from 'miniflare'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { gate } from '../functions/api/_middleware'
+import { onRequestDelete as deleteCommentRoute } from '../functions/api/admin/comments/[id]'
+import { onRequestGet as recentRoute } from '../functions/api/admin/comments/index'
 import { onRequestPatch as patchUserRoute } from '../functions/api/admin/users/[id]'
 import { onRequestGet as listRoute, onRequestPost as postRoute } from '../functions/api/videos/[id]/comments'
 import { COMMENT_MAX } from '../functions/lib/comments'
@@ -51,6 +53,9 @@ async function call(handlers: unknown, as: User, method: string, path: string, p
 const post = (as: User, videoId: number, body: unknown) =>
   call(postRoute, as, 'POST', `/api/videos/${videoId}/comments`, { id: String(videoId) }, { body })
 const list = (as: User, videoId: number) => call(listRoute, as, 'GET', `/api/videos/${videoId}/comments`, { id: String(videoId) })
+const remove = (as: User, commentId: number | string) =>
+  call(deleteCommentRoute, as, 'DELETE', `/api/admin/comments/${commentId}`, { id: String(commentId) })
+const recent = (as: User) => call(recentRoute, as, 'GET', '/api/admin/comments', {})
 const setCanComment = (canComment: boolean) =>
   call(patchUserRoute, admin, 'PATCH', `/api/admin/users/${viewer.id}`, { id: String(viewer.id) }, { can_comment: canComment })
 
@@ -132,5 +137,56 @@ describe('who can comment where', () => {
     expect((await post(pending, v.id, 'Hello')).status).toBe(403)
     expect((await list(pending, v.id)).status).toBe(403)
     expect((await post(viewer, 99999, 'Hello')).status).toBe(404)
+  })
+})
+
+describe('admin moderation', () => {
+  it('lets the admin delete any comment, once', async () => {
+    const v = await video()
+    const keep = (await post(other, v.id, 'Keep me')).json.comment
+    const gone = (await post(viewer, v.id, 'Delete me')).json.comment
+
+    const res = await remove(admin, gone.id)
+    expect(res.status).toBe(200)
+    expect(res.json).toEqual({ ok: true })
+    expect((await list(viewer, v.id)).json.comments.map((c: Json) => c.id)).toEqual([keep.id])
+
+    expect((await remove(admin, gone.id)).status).toBe(404)
+    expect((await remove(admin, 'abc')).status).toBe(404)
+  })
+
+  it('refuses everyone but the admin, even on their own comment', async () => {
+    const v = await video()
+    const mine = (await post(viewer, v.id, 'Mine')).json.comment
+    expect((await remove(viewer, mine.id)).status).toBe(403)
+    expect((await remove(creator, mine.id)).status).toBe(403)
+    expect((await remove(pending, mine.id)).status).toBe(403)
+    expect((await list(viewer, v.id)).json.comments.map((c: Json) => c.id)).toContain(mine.id)
+  })
+
+  it('lists recent comments across videos, newest first, with the video and whether the author can comment', async () => {
+    const a = await video()
+    const b = await video()
+    const older = (await post(viewer, a.id, 'On A')).json.comment
+    const newer = (await post(other, b.id, 'On B')).json.comment
+    await run(env.DB, "UPDATE comments SET created_at = '2026-10-03T00:00:00Z' WHERE id = ?", older.id)
+    await run(env.DB, "UPDATE comments SET created_at = '2026-10-04T00:00:00Z' WHERE id = ?", newer.id)
+    await setCanComment(false)
+
+    const { status, json } = await recent(admin)
+    expect(status).toBe(200)
+    const ids = json.comments.map((c: Json) => c.id)
+    expect(ids.indexOf(newer.id)).toBeLessThan(ids.indexOf(older.id))
+    expect(json.comments.find((c: Json) => c.id === older.id)).toMatchObject({
+      body: 'On A',
+      video: { id: a.id, title: a.title },
+      user: { id: viewer.id, username: 'Grandma', role: 'viewer', can_comment: false },
+    })
+    expect(json.comments.find((c: Json) => c.id === newer.id).user.can_comment).toBe(true)
+    expect(JSON.stringify(json)).not.toContain('@example.com')
+    await setCanComment(true)
+
+    expect((await recent(viewer)).status).toBe(403)
+    expect((await recent(creator)).status).toBe(403)
   })
 })

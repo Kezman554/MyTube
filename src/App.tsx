@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router'
 import { AuthGate } from './auth/AuthGate'
 import { canUpload, useMe } from './auth/MeContext'
 import type { User } from './auth/api'
-import { AdminPage } from './pages/AdminPage'
+import { AdminPage, type AdminTab } from './pages/AdminPage'
 import { ChannelPage } from './pages/ChannelPage'
 import { PlaylistPage } from './pages/PlaylistPage'
 import { NotFoundPage } from './pages/Status'
@@ -17,6 +17,13 @@ function Only({ allow, children }: { allow: (user: User) => boolean; children: R
   const { user } = useMe()
   return allow(user) ? children : <NotFoundPage />
 }
+
+const ADMIN_ROUTES: [string, AdminTab][] = [
+  ['admin', 'users'],
+  ['admin/drafts', 'drafts'],
+  ['admin/comments', 'comments'],
+  ['admin/content', 'content'],
+]
 
 // AuthGate first (register, pending and removed screens), then the routes for approved users.
 function App() {
@@ -37,22 +44,17 @@ function App() {
                 </Only>
               }
             />
-            <Route
-              path="admin"
-              element={
-                <Only allow={(user) => user.role === 'admin'}>
-                  <AdminPage tab="users" />
-                </Only>
-              }
-            />
-            <Route
-              path="admin/content"
-              element={
-                <Only allow={(user) => user.role === 'admin'}>
-                  <AdminPage tab="content" />
-                </Only>
-              }
-            />
+            {ADMIN_ROUTES.map(([path, tab]) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <Only allow={(user) => user.role === 'admin'}>
+                    <AdminPage tab={tab} />
+                  </Only>
+                }
+              />
+            ))}
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

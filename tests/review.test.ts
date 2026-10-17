@@ -128,6 +128,7 @@ describe('who sees drafts', () => {
     const ids = json.videos.map((v: Json) => v.id)
     expect(ids).toEqual(expect.arrayContaining([a.id, b.id]))
     expect(json.videos.every((v: Json) => v.status === 'draft')).toBe(true)
+    expect(json.videos.find((v: Json) => v.id === b.id).uploader).toEqual({ id: otherCreator.id, username: 'Cousin' })
     expect((await as(reviewQueueRoute, creator, 'GET', '/api/admin/videos')).status).toBe(403)
   })
 })

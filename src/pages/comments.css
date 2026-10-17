@@ -98,3 +98,21 @@
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
+
+/* Admin only: Delete under each comment, then an inline confirm. */
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+}
+
+.comment-delete {
+  font-size: 0.8125rem;
+  color: var(--danger-text);
+}
+
+.comment-confirm {
+  flex-basis: 100%;
+}

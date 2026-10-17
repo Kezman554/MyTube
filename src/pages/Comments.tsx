@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
+import { deleteComment } from '../admin/api'
 import { useMe } from '../auth/MeContext'
 import { commentAge } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
@@ -40,7 +41,7 @@ export function Comments({ videoId, published }: { videoId: number; published: b
       {comments.kind === 'ready' && comments.value.length > 0 && (
         <ul className="comment-list">
           {comments.value.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} />
+            <CommentItem key={comment.id} comment={comment} canDelete={user.role === 'admin'} onDeleted={reload} />
           ))}
         </ul>
       )}
@@ -109,7 +110,21 @@ function CommentBox({ videoId, onPosted, onMuted }: { videoId: number; onPosted:
   )
 }
 
-function CommentItem({ comment }: { comment: Comment }) {
+// The admin also gets Delete, which asks first (inline, as in the admin panel).
+function CommentItem({ comment, canDelete, onDeleted }: { comment: Comment; canDelete: boolean; onDeleted: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function remove() {
+    setBusy(true)
+    setError(null)
+    const result = await deleteComment(comment.id)
+    setBusy(false)
+    if (result.ok) onDeleted()
+    else setError(result.message)
+  }
+
   return (
     <li className="comment">
       <span className="comment-avatar" aria-hidden="true">
@@ -123,6 +138,29 @@ function CommentItem({ comment }: { comment: Comment }) {
           </time>
         </p>
         <p className="comment-body">{comment.body}</p>
+        {canDelete &&
+          (confirming ? (
+            <div className="comment-actions">
+              <span className="comment-confirm">Delete this comment?</span>
+              <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => void remove()}>
+                Yes, delete
+              </button>
+              <button type="button" className="btn btn-quiet btn-small" onClick={() => setConfirming(false)}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="comment-actions">
+              <button type="button" className="btn-link comment-delete" onClick={() => setConfirming(true)}>
+                Delete
+              </button>
+            </div>
+          ))}
+        {error && (
+          <p className="alert-error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </li>
   )
