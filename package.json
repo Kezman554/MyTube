@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "icons": "node scripts/icons.mjs",
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply mytube-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply mytube-db --remote"
@@ -28,6 +29,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "miniflare": "^5.20261012.1-beta",
     "oxlint": "^1.81.0",
+    "sharp": "^0.35.5",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.5",

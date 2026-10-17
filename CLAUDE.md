@@ -14,6 +14,7 @@ Built with Vite + React + TypeScript on Cloudflare Pages, Pages Functions, R2, D
 - `npm run dev` - Run the Vite frontend
 - `npx wrangler pages dev` - Run the full local stack (API, D1, R2)
 - `npm test` - Run tests
+- `npm run icons` - Regenerate the PNG icons in public/ from public/icon.svg (commit the results)
 
 ## Git
 - Do not push to GitHub without explicit permission

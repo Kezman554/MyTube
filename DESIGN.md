@@ -62,7 +62,7 @@ The End stone texture is pure CSS: layered `conic-gradient` squares at prime-num
 - Tokens are CSS custom properties, switched by `@media (prefers-color-scheme: dark)`. Components reference roles, never values.
 
 ## Icon
-**A pixel slice of pizza with dripping cheese, on no background** (the creator's pick, icon round 2, 16 Oct 2026). One source drawing, `public/icon.svg`, generates every icon: the favicon (SVG and PNG), the apple-touch icon and any manifest icons. A 200 response proves nothing, because the SPA catch-all returns `index.html`, so check the content type.
+**A pixel slice of pizza with dripping cheese, on no background** (the creator's pick, icon round 2, 16 Oct 2026). One source drawing, `public/icon.svg`, generates every icon (`npm run icons` writes the PNGs to `public/`): the favicon (SVG and PNG), the apple-touch icon and any manifest icons. A 200 response proves nothing, because the SPA catch-all returns `index.html`, so check the content type.
 
 16×16 grid, `shape-rendering="crispEdges"`, transparent background. Each rect is x, y, width, height:
 - Crust: dark `#8A4F1C` 2,1,12,1 · crust `#B5712E` 1,2,14,2 · highlight `#D9964A` 2,2,11,1
