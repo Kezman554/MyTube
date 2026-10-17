@@ -104,6 +104,28 @@ export function createUser(
   )
 }
 
+export function listUsers(db: D1Database, status?: UserStatus) {
+  return status
+    ? all<User>(db, 'SELECT * FROM users WHERE status = ? ORDER BY created_at, id', status)
+    : all<User>(db, 'SELECT * FROM users ORDER BY created_at, id')
+}
+
+export type UserChanges = Partial<Pick<User, 'status' | 'role' | 'can_comment'>>
+
+// Column names come from this fixed list, never from the caller.
+const USER_COLUMNS = ['status', 'role', 'can_comment'] as const
+
+export function updateUser(db: D1Database, id: number, changes: UserChanges) {
+  const columns = USER_COLUMNS.filter((column) => changes[column] !== undefined)
+  if (columns.length === 0) return getUserById(db, id)
+  return first<User>(
+    db,
+    `UPDATE users SET ${columns.map((column) => `${column} = ?`).join(', ')} WHERE id = ? RETURNING *`,
+    ...columns.map((column) => changes[column]!),
+    id,
+  )
+}
+
 // Videos
 
 export function getVideo(db: D1Database, id: number) {

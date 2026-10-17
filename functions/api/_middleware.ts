@@ -1,10 +1,10 @@
 import { verifyAccessJwt, devEmail } from '../lib/access'
 import { createUser, getUserByEmail } from '../lib/db'
 import type { ApiFunction } from '../lib/env'
+import { requireApproved } from '../lib/guards'
 
 // Every /api request: establish who is calling from the Access JWT, then load their user row.
-// Approval and role checks are left to the guards in functions/lib/guards.ts.
-export const onRequest: ApiFunction = async (context) => {
+export const identify: ApiFunction = async (context) => {
   const { request, env } = context
 
   let email = devEmail(request, env)
@@ -24,3 +24,17 @@ export const onRequest: ApiFunction = async (context) => {
   context.data.user = user
   return context.next()
 }
+
+// Routes that unregistered, pending and removed users must still reach. Keep this list short:
+// it is the only way past approval, and none of these return channel content.
+export const OPEN_ROUTES = new Set(['/api/health', '/api/me', '/api/register'])
+
+// Approval is the default: every other /api route answers 403 unless the caller is approved,
+// so a new content route is guarded even if it forgets requireApproved. Role checks stay on the routes.
+export const gate: ApiFunction = (context) => {
+  const path = new URL(context.request.url).pathname.replace(/\/+$/, '')
+  if (OPEN_ROUTES.has(path)) return context.next()
+  return requireApproved(context)
+}
+
+export const onRequest = [identify, gate]

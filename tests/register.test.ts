@@ -1,29 +1,18 @@
-import { readFileSync } from 'node:fs'
-import { convertV4MiniflareOptions, Miniflare } from 'miniflare'
+import type { Miniflare } from 'miniflare'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { onRequestPost as register } from '../functions/api/register'
 import { createUser, getUserByEmail, type User } from '../functions/lib/db'
 import type { Env, Identity } from '../functions/lib/env'
 import { checkUsername } from '../functions/lib/username'
+import { createTestDb } from './helpers'
 
 let mf: Miniflare
 let env: Env
 
 beforeAll(async () => {
-  mf = new Miniflare(
-    convertV4MiniflareOptions({
-      name: 'register-test',
-      compatibilityDate: '2026-10-16',
-      modules: true,
-      script: 'export default { fetch: () => new Response() }',
-      d1Databases: ['DB'],
-    }),
-  )
-  const db = (await mf.getD1Database('DB')) as unknown as D1Database
-  const schema = readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8')
-  for (const statement of schema.replace(/^--.*$/gm, '').split(';')) {
-    if (statement.trim()) await db.prepare(statement).run()
-  }
+  const test = await createTestDb('register-test')
+  mf = test.mf
+  const db = test.db
   env = { DB: db, MEDIA: {} as R2Bucket, ACCESS_AUD: 'aud', ACCESS_TEAM_DOMAIN: 'team', ADMIN_EMAIL: 'admin@example.com' }
   await createUser(db, 'taken@example.com', 'Steve')
 })
