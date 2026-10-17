@@ -23,6 +23,13 @@
   min-height: 46px;
 }
 
+/* A token the contrast audit measures, not the browser's grey. Firefox also fades placeholders by
+   default, so opacity is reset to keep the colour as measured. */
+.comment-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
 .comment-box-row {
   display: flex;
   align-items: center;

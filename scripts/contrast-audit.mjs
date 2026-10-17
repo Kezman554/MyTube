@@ -23,6 +23,7 @@ const PAIRINGS = [
   ['text', 'surface', 'text', 'panels, menu, quiet buttons, comment initials, alerts in panels'],
   ['text-secondary', 'ground-texture', 'text', '.muted, card meta, comment times and counts on the page'],
   ['text-secondary', 'surface', 'text', '.muted in panels and the menu, disabled buttons'],
+  ['text-secondary', 'ground', 'text', 'comment box placeholder (inputs are painted solid ground)'],
   ['link', 'ground-texture', 'text', 'links and upload percentage on the page'],
   ['link', 'ground', 'text', 'Admin chip in the top bar'],
   ['link', 'surface', 'text', 'links in panels (admin comments)'],
