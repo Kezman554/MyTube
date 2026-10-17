@@ -3,7 +3,7 @@ import { useParams } from 'react-router'
 import { plurals, timeAgo } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
 import { EnderFace } from '../shell/Pixels'
-import { getVideo, recordView, type Video } from '../videos/api'
+import { getVideo, recordView, setLiked, type Video } from '../videos/api'
 import { CHANNEL_NAME } from './ChannelPage'
 import { Comments } from './Comments'
 import { LoadFailed, Loading, NotFoundPage } from './Status'
@@ -39,6 +39,24 @@ function Watch({ video }: { video: Video }) {
   const player = useRef<HTMLVideoElement>(null)
   const [views, setViews] = useState(video.view_count ?? 0)
   const [failed, setFailed] = useState(false)
+  const [liked, setLikedState] = useState(video.liked ?? false)
+  const [likes, setLikes] = useState(video.like_count ?? 0)
+  const [liking, setLiking] = useState(false)
+  const [likeError, setLikeError] = useState(false)
+
+  function toggleLike() {
+    setLiking(true)
+    setLikeError(false)
+    void setLiked(video.id, !liked).then((result) => {
+      setLiking(false)
+      if (result.ok) {
+        setLikedState(result.value.liked)
+        setLikes(result.value.like_count)
+      } else {
+        setLikeError(true)
+      }
+    })
+  }
 
   useViewCounter(player, String(video.id), () => {
     void recordView(video.id).then((result) => {
@@ -85,7 +103,25 @@ function Watch({ video }: { video: Video }) {
           </span>
           <span className="watch-channel-name">{CHANNEL_NAME}</span>
         </div>
-        {video.description && <p className="watch-description">{video.description}</p>}
+        {!draft && (
+          <div className="watch-actions">
+            <button
+              type="button"
+              className={liked ? 'btn btn-small' : 'btn btn-small btn-quiet'}
+              aria-pressed={liked}
+              disabled={liking}
+              onClick={toggleLike}
+            >
+              {liked ? 'Liked' : 'Like'} · {likes}
+            </button>
+            {likeError && (
+              <span className="muted" role="alert">
+                Couldn't save your like. Try again.
+              </span>
+            )}
+          </div>
+        )}
+        {video.description &&<p className="watch-description">{video.description}</p>}
         <Comments videoId={video.id} published={!draft} />
       </div>
     </>

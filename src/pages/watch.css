@@ -84,6 +84,12 @@
   font-size: 0.6875rem;
 }
 
+.watch-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .watch-description {
   margin: 0;
   padding: 12px;

@@ -95,7 +95,7 @@ describe('POST /api/videos, GET /api/videos/:id and GET /api/thumbnails/:id', ()
     expect(video.thumbnail_url).toMatch(new RegExp(`^/api/thumbnails/${video.id}\\?v=[0-9a-f]{8}$`))
     expect(video).not.toHaveProperty('r2_key')
 
-    expect(await getVideo(creator, video.id)).toEqual({ status: 200, json: { video: { ...video, view_count: 0, like_count: 0 } } })
+    expect(await getVideo(creator, video.id)).toEqual({ status: 200, json: { video: { ...video, view_count: 0, like_count: 0, liked: false } } })
     expect((await getVideo(admin, video.id)).status).toBe(200)
 
     const res = await thumb(creator, video.thumbnail_url)

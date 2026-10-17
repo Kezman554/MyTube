@@ -204,6 +204,23 @@ export function getVideoWithCounts(db: D1Database, id: number) {
   return first<Video & VideoCounts>(db, `SELECT videos.*, ${VIDEO_COUNTS} FROM videos WHERE id = ?`, id)
 }
 
+export async function hasLiked(db: D1Database, videoId: number, userId: number) {
+  return (await first(db, 'SELECT 1 AS liked FROM likes WHERE video_id = ? AND user_id = ?', videoId, userId)) !== null
+}
+
+export async function countLikes(db: D1Database, videoId: number) {
+  return (await first<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM likes WHERE video_id = ?', videoId))!.n
+}
+
+// Idempotent: liking twice, or unliking something not liked, changes nothing.
+export function addLike(db: D1Database, videoId: number, userId: number) {
+  return run(db, 'INSERT OR IGNORE INTO likes (user_id, video_id) VALUES (?, ?)', userId, videoId)
+}
+
+export function removeLike(db: D1Database, videoId: number, userId: number) {
+  return run(db, 'DELETE FROM likes WHERE user_id = ? AND video_id = ?', userId, videoId)
+}
+
 // Records a view unless this user already has one for this video in the last `windowMinutes`.
 // Check and insert are one statement, so two requests arriving together can't both count.
 // Returns whether this view counted.

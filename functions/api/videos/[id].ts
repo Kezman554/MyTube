@@ -1,4 +1,4 @@
-import { getVideoWithCounts, updateVideo, type VideoChanges } from '../../lib/db'
+import { getVideoWithCounts, hasLiked, updateVideo, type VideoChanges } from '../../lib/db'
 import type { ApiFunction } from '../../lib/env'
 import { requireRole } from '../../lib/guards'
 import { deleteObject, putObject } from '../../lib/storage'
@@ -16,13 +16,13 @@ import {
 
 // Approval is enforced by the /api gate; canSee decides which approved users may see each video.
 
-// GET /api/videos/:id -> { video } with view_count and like_count. Drafts are visible to the admin
+// GET /api/videos/:id -> { video } with view_count, like_count and liked (by the caller). Drafts are visible to the admin
 // and their uploader only.
 export const onRequestGet: ApiFunction = async ({ env, data, params }) => {
   const id = Number(params.id)
   const video = Number.isSafeInteger(id) && id > 0 ? await getVideoWithCounts(env.DB, id) : null
   if (!video || !canSee(data.user!, video)) return videoError(404, 'not_found')
-  return Response.json({ video: videoJson(video) })
+  return Response.json({ video: { ...videoJson(video), liked: await hasLiked(env.DB, video.id, data.user!.id) } })
 }
 
 // PATCH /api/videos/:id, multipart/form-data with any of title, description, thumbnail (a file).

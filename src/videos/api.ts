@@ -21,6 +21,8 @@ export interface Video {
   // On lists and the watch page.
   view_count?: number
   like_count?: number
+  // Watch page only: whether the signed-in user has liked it.
+  liked?: boolean
 }
 
 export interface PlaylistSummary {
@@ -48,6 +50,10 @@ export const getVideo = (id: string) => request(`/api/videos/${encodeURIComponen
 // Counts a view (the server ignores repeats within its window, and drafts). -> the current count.
 export const recordView = (id: number) =>
   request(`/api/videos/${id}/view`, { method: 'POST' }, (b: { counted: boolean; view_count: number }) => b)
+
+// Idempotent. -> the caller's state and the new count.
+export const setLiked = (id: number, liked: boolean) =>
+  request(`/api/videos/${id}/like`, { method: liked ? 'POST' : 'DELETE' }, (b: { liked: boolean; like_count: number }) => b)
 
 export const COMMENT_MAX = 1000
 
