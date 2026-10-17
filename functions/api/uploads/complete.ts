@@ -1,4 +1,4 @@
-import { deleteUpload } from '../../lib/db'
+import { deleteUpload, markUploadComplete } from '../../lib/db'
 import type { ApiFunction } from '../../lib/env'
 import { requireRole } from '../../lib/guards'
 import { completeMultipartUpload, deleteObject } from '../../lib/storage'
@@ -6,6 +6,7 @@ import { loadOwnUpload, MAX_PARTS, readJsonObject, uploadError } from '../../lib
 
 // POST /api/uploads/complete { uploadId, key, parts: [{ partNumber, etag }] } -> { key, size }
 // Joins the parts into one object and checks it is exactly the size declared at start.
+// The upload then stays on record as completed until a video is created from it.
 const complete: ApiFunction = async ({ request, env, data }) => {
   const body = await readJsonObject(request)
   if (!body) return uploadError(400, 'invalid_body', 'Send a JSON object.')
@@ -23,11 +24,13 @@ const complete: ApiFunction = async ({ request, env, data }) => {
     return uploadError(400, 'complete_failed', "The video's parts couldn't be joined. Try uploading again.")
   }
 
-  await deleteUpload(env.DB, upload.upload_id)
   if (object.size !== upload.size) {
     await deleteObject(env.MEDIA, upload.r2_key)
+    await deleteUpload(env.DB, upload.upload_id)
     return uploadError(400, 'size_mismatch', 'The uploaded video is incomplete. Try uploading again.')
   }
+  // Kept, not deleted: POST /api/videos only accepts keys from completed uploads.
+  await markUploadComplete(env.DB, upload.upload_id)
   return Response.json({ key: upload.r2_key, size: object.size })
 }
 

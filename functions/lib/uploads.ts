@@ -53,8 +53,8 @@ export function uploadError(status: number, error: string, message?: string) {
   return Response.json(message ? { error, message } : { error }, { status })
 }
 
-// Loads an in-progress upload the caller started. A missing upload, another user's upload,
-// or a key that doesn't match all answer 404, so upload ids can't be probed.
+// Loads an in-progress upload the caller started. A missing or finished upload, another user's
+// upload, or a key that doesn't match all answer 404, so upload ids can't be probed.
 export async function loadOwnUpload(
   db: D1Database,
   userId: number,
@@ -63,6 +63,8 @@ export async function loadOwnUpload(
 ): Promise<Upload | Response> {
   if (typeof uploadId !== 'string' || typeof key !== 'string') return uploadError(400, 'invalid_upload')
   const upload = await getUpload(db, uploadId)
-  if (!upload || upload.user_id !== userId || upload.r2_key !== key) return uploadError(404, 'upload_not_found')
+  if (!upload || upload.completed_at || upload.user_id !== userId || upload.r2_key !== key) {
+    return uploadError(404, 'upload_not_found')
+  }
   return upload
 }

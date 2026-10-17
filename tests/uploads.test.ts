@@ -106,7 +106,13 @@ describe('/api/uploads', () => {
     const stored = new Uint8Array(await object!.arrayBuffer())
     expect(stored[5 * MiB - 1]).toBe(65)
     expect(stored[5 * MiB]).toBe(66)
-    expect(await getUpload(env.DB, String(started.json.uploadId))).toBeNull()
+    expect((await getUpload(env.DB, String(started.json.uploadId)))!.completed_at).not.toBeNull()
+
+    // Finished: it takes no more parts, can't be completed again, and can't be aborted (which would lose the video).
+    expect((await part(creator, started.json, 1, part1)).status).toBe(404)
+    expect((await complete(creator, { ...started.json, parts: [p1.json, p2.json] })).status).toBe(404)
+    expect((await abort(creator, started.json)).status).toBe(404)
+    expect(await env.MEDIA.head(String(started.json.key))).not.toBeNull()
   })
 
   it('lets the admin upload too', async () => {

@@ -1,0 +1,111 @@
+/* Admin: leftover uploads. Values come from tokens.css only. */
+
+.leftovers {
+  width: 100%;
+  max-width: 36rem;
+  padding: 24px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--attention);
+  border-radius: var(--radius);
+}
+
+.leftovers-title {
+  margin: 0 0 16px;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.leftovers-intro,
+.leftovers-meta {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.leftovers-meta {
+  margin-bottom: 8px;
+}
+
+.leftovers-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leftovers-item {
+  padding: 16px 0;
+  border-top: var(--border-width) solid var(--divider);
+}
+
+.leftovers-name {
+  margin: 0 0 4px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.leftovers-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.leftovers-confirm {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.leftovers-error {
+  margin: 8px 0;
+  padding: 8px 12px;
+  color: var(--danger-text);
+  border: var(--border-width) solid var(--danger-outline);
+  border-radius: var(--radius);
+}
+
+.leftovers-button {
+  margin-top: 8px;
+  padding: 12px 16px;
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--on-accent);
+  background: var(--accent-fill);
+  border: var(--border-width) solid var(--accent-fill);
+  border-radius: var(--radius);
+  box-shadow: inset calc(-1 * var(--bevel-size)) calc(-1 * var(--bevel-size)) 0 var(--accent-bevel);
+  cursor: pointer;
+}
+
+.leftovers-button:active {
+  box-shadow: inset var(--bevel-size) var(--bevel-size) 0 var(--accent-bevel);
+}
+
+.leftovers-button-quiet,
+.leftovers-button-danger {
+  background: var(--surface);
+  box-shadow: inset calc(-1 * var(--bevel-size)) calc(-1 * var(--bevel-size)) 0 var(--surface-bevel);
+}
+
+.leftovers-button-quiet {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* Destructive: danger outline plus explicit wording, never colour alone. */
+.leftovers-button-danger {
+  color: var(--danger-text);
+  border-color: var(--danger-outline);
+}
+
+.leftovers-button-quiet:active,
+.leftovers-button-danger:active {
+  box-shadow: inset var(--bevel-size) var(--bevel-size) 0 var(--surface-bevel);
+}
+
+.leftovers-button:focus-visible {
+  outline: var(--border-width) solid var(--link);
+  outline-offset: var(--border-width);
+}

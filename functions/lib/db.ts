@@ -136,9 +136,11 @@ export interface Upload {
   content_type: string
   size: number
   created_at: string
+  // Set once the parts are joined into one object of the declared size.
+  completed_at: string | null
 }
 
-export function createUpload(db: D1Database, upload: Omit<Upload, 'created_at'>) {
+export function createUpload(db: D1Database, upload: Omit<Upload, 'created_at' | 'completed_at'>) {
   return run(
     db,
     'INSERT INTO uploads (upload_id, r2_key, user_id, filename, content_type, size) VALUES (?, ?, ?, ?, ?, ?)',
@@ -155,6 +157,14 @@ export function getUpload(db: D1Database, uploadId: string) {
   return first<Upload>(db, 'SELECT * FROM uploads WHERE upload_id = ?', uploadId)
 }
 
+export function getUploadByKey(db: D1Database, key: string) {
+  return first<Upload>(db, 'SELECT * FROM uploads WHERE r2_key = ?', key)
+}
+
+export function markUploadComplete(db: D1Database, uploadId: string) {
+  return run(db, "UPDATE uploads SET completed_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE upload_id = ?", uploadId)
+}
+
 export function deleteUpload(db: D1Database, uploadId: string) {
   return run(db, 'DELETE FROM uploads WHERE upload_id = ?', uploadId)
 }
@@ -165,6 +175,45 @@ export function getVideo(db: D1Database, id: number) {
   return first<Video>(db, 'SELECT * FROM videos WHERE id = ?', id)
 }
 
+export function getVideoByKey(db: D1Database, key: string) {
+  return first<Video>(db, 'SELECT * FROM videos WHERE r2_key = ?', key)
+}
+
 export function listPublishedVideos(db: D1Database) {
   return all<Video>(db, "SELECT * FROM videos WHERE status = 'published' ORDER BY published_at DESC")
+}
+
+export function createVideo(
+  db: D1Database,
+  video: Pick<Video, 'title' | 'description' | 'r2_key' | 'thumbnail_key' | 'status' | 'uploaded_by'>,
+) {
+  return first<Video>(
+    db,
+    `INSERT INTO videos (title, description, r2_key, thumbnail_key, status, uploaded_by, published_at)
+     VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN strftime('%Y-%m-%dT%H:%M:%SZ', 'now') END)
+     RETURNING *`,
+    video.title,
+    video.description,
+    video.r2_key,
+    video.thumbnail_key,
+    video.status,
+    video.uploaded_by,
+    video.status,
+  )
+}
+
+export type VideoChanges = Partial<Pick<Video, 'title' | 'description' | 'thumbnail_key'>>
+
+// Column names come from this fixed list, never from the caller.
+const VIDEO_COLUMNS = ['title', 'description', 'thumbnail_key'] as const
+
+export function updateVideo(db: D1Database, id: number, changes: VideoChanges) {
+  const columns = VIDEO_COLUMNS.filter((column) => changes[column] !== undefined)
+  if (columns.length === 0) return getVideo(db, id)
+  return first<Video>(
+    db,
+    `UPDATE videos SET ${columns.map((column) => `${column} = ?`).join(', ')} WHERE id = ? RETURNING *`,
+    ...columns.map((column) => changes[column]!),
+    id,
+  )
 }
