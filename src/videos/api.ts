@@ -49,6 +49,23 @@ export const getVideo = (id: string) => request(`/api/videos/${encodeURIComponen
 export const recordView = (id: number) =>
   request(`/api/videos/${id}/view`, { method: 'POST' }, (b: { counted: boolean; view_count: number }) => b)
 
+export const COMMENT_MAX = 1000
+
+export interface Comment {
+  id: number
+  body: string
+  created_at: string
+  user: { id: number; username: string }
+}
+
+// Newest first.
+export const listComments = (videoId: number) =>
+  request(`/api/videos/${videoId}/comments`, {}, (b: { comments: Comment[] }) => b.comments)
+
+// Fails with status 403 when the user is muted.
+export const postComment = (videoId: number, body: string) =>
+  request(`/api/videos/${videoId}/comments`, { method: 'POST', body: JSON.stringify({ body }) }, (b: { comment: Comment }) => b.comment)
+
 // The form carries key, title, description, thumbnail and (admin only) publish.
 export const createVideo = (form: FormData) =>
   request('/api/videos', { method: 'POST', body: form }, (b: { video: Video }) => b.video)

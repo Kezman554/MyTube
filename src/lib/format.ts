@@ -14,6 +14,15 @@ export function timeAgo(iso: string, now = Date.now()) {
   return plural(Math.floor(days / 365), 'year')
 }
 
+// Comments are recent and conversational, so they get minutes and hours before falling back to days.
+export function commentAge(iso: string, now = Date.now()) {
+  const minutes = Math.floor((now - Date.parse(iso)) / 60_000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return plural(minutes, 'minute')
+  if (minutes < 24 * 60) return plural(Math.floor(minutes / 60), 'hour')
+  return timeAgo(iso, now)
+}
+
 const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'} ago`
 
 export const plurals = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`

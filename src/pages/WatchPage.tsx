@@ -5,11 +5,12 @@ import { useLoad } from '../lib/useLoad'
 import { EnderFace } from '../shell/Pixels'
 import { getVideo, recordView, type Video } from '../videos/api'
 import { CHANNEL_NAME } from './ChannelPage'
+import { Comments } from './Comments'
 import { LoadFailed, Loading, NotFoundPage } from './Status'
 import { useViewCounter } from './useViewCounter'
 import './watch.css'
 
-// The watch page: player, title, views and date, channel line, description.
+// The watch page: player, title, views and date, channel line, description, comments.
 export function WatchPage() {
   const { id = '' } = useParams()
   const [video, reload] = useLoad(`video:${id}`, () => getVideo(id))
@@ -85,6 +86,7 @@ function Watch({ video }: { video: Video }) {
           <span className="watch-channel-name">{CHANNEL_NAME}</span>
         </div>
         {video.description && <p className="watch-description">{video.description}</p>}
+        <Comments videoId={video.id} published={!draft} />
       </div>
     </>
   )

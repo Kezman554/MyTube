@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatBytes, plurals, timeAgo } from '../src/lib/format'
+import { commentAge, formatBytes, plurals, timeAgo } from '../src/lib/format'
 
 const NOW = Date.parse('2026-10-17T12:00:00Z')
 const ago = (days: number) => new Date(NOW - days * 86_400_000).toISOString()
@@ -14,6 +14,19 @@ describe('timeAgo', () => {
     expect(timeAgo(ago(45), NOW)).toBe('1 month ago')
     expect(timeAgo(ago(200), NOW)).toBe('6 months ago')
     expect(timeAgo(ago(800), NOW)).toBe('2 years ago')
+  })
+})
+
+describe('commentAge', () => {
+  it('uses minutes and hours for recent comments, then days', () => {
+    const minutes = (n: number) => new Date(NOW - n * 60_000).toISOString()
+    expect(commentAge(minutes(0.5), NOW)).toBe('Just now')
+    expect(commentAge(minutes(1), NOW)).toBe('1 minute ago')
+    expect(commentAge(minutes(45), NOW)).toBe('45 minutes ago')
+    expect(commentAge(minutes(60), NOW)).toBe('1 hour ago')
+    expect(commentAge(minutes(23 * 60), NOW)).toBe('23 hours ago')
+    expect(commentAge(minutes(30 * 60), NOW)).toBe('Yesterday')
+    expect(commentAge(minutes(4 * 24 * 60), NOW)).toBe('4 days ago')
   })
 })
 

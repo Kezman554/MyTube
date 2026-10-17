@@ -1,0 +1,100 @@
+/* Comments under a video. Values come from tokens.css only; fields, buttons and alerts are shared. */
+
+.comments {
+  display: grid;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.comments-title {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.comment-box {
+  display: grid;
+  gap: 8px;
+}
+
+.comment-input {
+  min-height: 46px;
+}
+
+.comment-box-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.comment-count {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* Over the limit: the word count turns to the danger colour, and the Post button is disabled too,
+   so colour is never the only signal. */
+.comment-count-over {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+.comments-muted {
+  margin: 0;
+  padding: 12px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+}
+
+.comment-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 16px;
+}
+
+.comment {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.comment-avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-pixel);
+  font-size: 0.625rem;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+}
+
+.comment-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.comment-meta {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.comment-name {
+  font-weight: 600;
+}
+
+.comment-body {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
