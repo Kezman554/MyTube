@@ -5,6 +5,7 @@ import { can, useMe, type ApprovedMe } from './auth/MeContext'
 import { ADMIN_TABS, adminTabsFor } from './admin/tabs'
 import { AdminPage } from './pages/AdminPage'
 import { ChannelPage } from './pages/ChannelPage'
+import { ChannelSettingsPage } from './pages/ChannelSettingsPage'
 import { PlaylistPage } from './pages/PlaylistPage'
 import { NotFoundPage } from './pages/Status'
 import { UploadPage } from './pages/UploadPage'
@@ -42,6 +43,14 @@ function App() {
               element={
                 <Only allow={(me) => can(me, 'upload')}>
                   <UploadPage />
+                </Only>
+              }
+            />
+            <Route
+              path="channel/edit"
+              element={
+                <Only allow={(me) => me.edits_channel}>
+                  <ChannelSettingsPage />
                 </Only>
               }
             />

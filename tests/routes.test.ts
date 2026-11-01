@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { gate, OPEN_ROUTES } from '../functions/api/_middleware'
 import type { User } from '../functions/lib/db'
@@ -11,8 +12,9 @@ import { ROUTE_REACHED, runChain } from './helpers'
 //   'approved'  any approved user
 //   a power     an approved user holding it (the admin holds every power)
 //   [powers]    an approved user holding any one of them; the handler then checks each field's power
+//   'owner'     the channel's owner, or the admin (requireChannelEditor)
 //   'admin'     the admin only: no power covers it
-type Need = 'open' | 'approved' | 'admin' | Power | Power[]
+type Need = 'open' | 'approved' | 'owner' | 'admin' | Power | Power[]
 const EXPECTED: Record<string, Need> = {
   'GET /api/health': 'open',
   'GET /api/me': 'open',
@@ -29,6 +31,12 @@ const EXPECTED: Record<string, Need> = {
   'GET /api/playlists/[id]': 'approved',
   'GET /api/stream/[id]': 'approved',
   'GET /api/thumbnails/[id]': 'approved',
+  'GET /api/channel': 'approved',
+  'GET /api/channel/banner': 'approved',
+
+  'PUT /api/channel/bio': 'owner',
+  'PUT /api/channel/banner': 'owner',
+  'DELETE /api/channel/banner': 'owner',
 
   'POST /api/videos': 'upload',
   'PATCH /api/videos/[id]': 'upload',
@@ -63,12 +71,20 @@ const EXPECTED: Record<string, Need> = {
   'PUT /api/admin/users/[id]/admin-access': 'admin',
   'GET /api/admin/orphans': 'admin',
   'DELETE /api/admin/orphans': 'admin',
+  'PUT /api/admin/channel/owner': 'admin',
 }
 
 type Handler = (context: never) => Response | Promise<Response>
 
 // Finds every onRequest<Method> export, keyed 'METHOD /api/path' with [params] as in the file names.
-const modules = import.meta.glob<Record<string, unknown>>('../functions/api/**/*.ts', { eager: true })
+// The files are listed from disk on every run, not with import.meta.glob: Vitest caches a transformed
+// glob, and a cached list once hid newly added routes from this test.
+const API_DIR = new URL('../functions/api/', import.meta.url)
+const files = readdirSync(API_DIR, { recursive: true, encoding: 'utf8' })
+  .map((f) => f.replace(/\\/g, '/'))
+  .filter((f) => f.endsWith('.ts'))
+const modules: Record<string, Record<string, unknown>> = {}
+for (const f of files) modules[`../functions/api/${f}`] = await import(new URL(f, API_DIR).href)
 const routes = new Map<string, Handler[]>()
 for (const [file, mod] of Object.entries(modules)) {
   if (file.endsWith('/_middleware.ts')) continue
@@ -81,14 +97,24 @@ for (const [file, mod] of Object.entries(modules)) {
 }
 
 // If a guard lets a request through, the route touches the database or bucket, and this says so.
-// Powers come in data.powers, as the middleware sets them, so a guard never needs the database.
+// Powers come in data.powers, as the middleware sets them, so a guard never needs the database. The
+// one query a guard may make is the channel owner (requireChannelEditor), answered here with OWNER_ID.
+const OWNER_ID = 42
 const tripwire = new Proxy({} as Record<string, unknown>, {
   get(_, prop) {
     if (prop === 'then') return undefined
     throw new Error(`route reached its handler (touched .${String(prop)})`)
   },
 })
-const env = { DB: tripwire, MEDIA: tripwire, ACCESS_AUD: 'aud', ACCESS_TEAM_DOMAIN: 'team', ADMIN_EMAIL: 'admin@example.com' } as unknown as Env
+const OWNER_QUERY = 'SELECT owner_user_id FROM channel WHERE id = 1'
+const db = {
+  prepare(sql: string) {
+    if (sql !== OWNER_QUERY) throw new Error(`route reached its handler (ran ${sql.slice(0, 40)}…)`)
+    const statement = { bind: () => statement, first: async () => ({ owner_user_id: OWNER_ID }) }
+    return statement
+  },
+}
+const env = { DB: db, MEDIA: tripwire, ACCESS_AUD: 'aud', ACCESS_TEAM_DOMAIN: 'team', ADMIN_EMAIL: 'admin@example.com' } as unknown as Env
 
 interface Caller {
   label: string
@@ -96,8 +122,8 @@ interface Caller {
   powers: Power[]
 }
 
-function caller(label: string, role: User['role'], status: User['status'], powers: readonly Power[] = []): Caller {
-  const user: User = { id: 7, email: `${label}@example.com`, username: label, role, status, can_comment: 1, created_at: '2026-10-17T00:00:00Z' }
+function caller(label: string, role: User['role'], status: User['status'], powers: readonly Power[] = [], id = 7): Caller {
+  const user: User = { id, email: `${label}@example.com`, username: label, role, status, can_comment: 1, admin_access: 1, created_at: '2026-10-17T00:00:00Z' }
   return { label, user, powers: [...powers] }
 }
 const STRANGER: Caller = { label: 'unregistered', user: null, powers: [] }
@@ -107,6 +133,9 @@ const REMOVED = caller('removed', 'viewer', 'removed', POWERS)
 const VIEWER = caller('viewer', 'viewer', 'approved')
 const EVERY_POWER = caller('every-power', 'viewer', 'approved', POWERS)
 const ADMIN = caller('admin', 'admin', 'approved', POWERS)
+// The channel owner: an ordinary approved viewer whose id the owner query returns.
+const OWNER = caller('owner', 'viewer', 'approved', [], OWNER_ID)
+const PENDING_OWNER = caller('pending-owner', 'viewer', 'pending', [], OWNER_ID)
 
 const needed = (need: Need): Power[] => (Array.isArray(need) ? need : [need as Power])
 const isPowerNeed = (need: Need) => Array.isArray(need) || (POWERS as readonly string[]).includes(need)
@@ -116,6 +145,7 @@ function refused(need: Need): Caller[] {
   const unapproved = [STRANGER, PENDING, REMOVED]
   if (need === 'approved') return unapproved
   if (need === 'admin') return [...unapproved, VIEWER, EVERY_POWER]
+  if (need === 'owner') return [...unapproved, PENDING_OWNER, VIEWER, EVERY_POWER]
   // Every other power, but not the one (or ones) the route needs.
   const others = POWERS.filter((p) => !needed(need).includes(p))
   return [...unapproved, VIEWER, caller(`all-but-${needed(need).join('-')}`, 'viewer', 'approved', others)]
@@ -124,6 +154,7 @@ function refused(need: Need): Caller[] {
 function admitted(need: Need): Caller[] {
   if (need === 'approved') return [VIEWER, ADMIN]
   if (need === 'admin') return [ADMIN]
+  if (need === 'owner') return [OWNER, ADMIN]
   return [...needed(need).map((p) => caller(`only-${p}`, 'viewer', 'approved', [p])), ADMIN]
 }
 
@@ -166,7 +197,7 @@ describe('every route in functions/api', () => {
     })
 
     // The guards alone (the route's handler stood in for by ROUTE_REACHED) let these callers through.
-    it(`${key} admits ${label}${need === 'admin' ? '' : ' and the admin'}`, async () => {
+    it(`${key} admits ${label}${need === 'admin' || need === 'approved' ? '' : ' and the admin'}`, async () => {
       const guards = routes.get(key)!.slice(0, -1)
       for (const who of admitted(need)) {
         const res = await run(guards, who, key)

@@ -36,6 +36,7 @@ Nick (admin), his son (creator), and a small group of approved family and friend
 
 ### Viewer Experience
 - YouTube-style channel page with banner and video grid
+- The channel belongs to one user account, set by the admin; the owner (or the admin) changes its banner picture and bio in Channel settings
 - Playlists tab
 - Watch page with streaming playback
 - View counts

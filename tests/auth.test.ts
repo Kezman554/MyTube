@@ -177,7 +177,7 @@ describe('middleware', () => {
 describe('GET /api/me', () => {
   it('reports unregistered for a null user', async () => {
     const { result } = call(me, { data: { email: 'stranger@example.com', user: null } })
-    expect(await (await result).json()).toEqual({ email: 'stranger@example.com', user: null, status: 'unregistered', powers: [] })
+    expect(await (await result).json()).toEqual({ email: 'stranger@example.com', user: null, status: 'unregistered', powers: [], edits_channel: false })
   })
 })
 

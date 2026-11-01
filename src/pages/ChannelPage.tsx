@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router'
+import { getChannel } from '../channel/api'
 import { plurals, timeAgo } from '../lib/format'
 import { useLoad, type Loaded } from '../lib/useLoad'
 import { EnderFace } from '../shell/Pixels'
@@ -12,22 +13,39 @@ export const CHANNEL_NAME = 'CrAzYeNdErMaN'
 // Fixed positions, so the banner looks the same on every visit: [left %, top %, size px, colour 1-3].
 const PARTICLES = Array.from({ length: 24 }, (_, i) => [((i * 53 + 31) % 1240) / 12.4, ((i * 37 + 11) % 170) / 1.9, 4 + (i % 4) * 2, (i % 3) + 1])
 
-// The channel page, YouTube-shaped: banner, avatar and name, then the Videos or Playlists tab.
-export function ChannelPage({ tab }: { tab: 'videos' | 'playlists' }) {
-  const [videos, reloadVideos] = useLoad('videos', listVideos)
-  const [playlists, reloadPlaylists] = useLoad('playlists', listPlaylists)
-
+// The channel's banner: the owner's picture, cropped to the banner's box at every width, or the
+// built-in particle banner. Shared with Channel settings for its preview.
+export function Banner({ url }: { url: string | null | undefined }) {
+  // undefined = not known yet: the plain banner colour, so neither banner flashes before the other.
   return (
-    <>
-      <div className="banner" aria-hidden="true">
-        {PARTICLES.map(([left, top, size, colour], i) => (
+    <div className={url ? 'banner banner-picture' : 'banner'} aria-hidden="true">
+      {url ? (
+        <img src={url} alt="" />
+      ) : url === null ? (
+        PARTICLES.map(([left, top, size, colour], i) => (
           <span
             key={i}
             className={`particle particle-${colour}`}
             style={{ left: `${left}%`, top: `${top}%`, width: size, height: size }}
           />
-        ))}
-      </div>
+        ))
+      ) : null}
+    </div>
+  )
+}
+
+// The channel page, YouTube-shaped: banner, avatar, name and bio, then the Videos or Playlists tab.
+export function ChannelPage({ tab }: { tab: 'videos' | 'playlists' }) {
+  const [videos, reloadVideos] = useLoad('videos', listVideos)
+  const [playlists, reloadPlaylists] = useLoad('playlists', listPlaylists)
+  const [channel] = useLoad('channel', getChannel)
+  // If the channel can't be loaded, the page still works with the built-in banner and no bio.
+  const bannerUrl = channel.kind === 'ready' ? channel.value.banner_url : channel.kind === 'failed' ? null : undefined
+  const bio = channel.kind === 'ready' ? channel.value.bio : ''
+
+  return (
+    <>
+      <Banner url={bannerUrl} />
       <div className="page page-wide channel">
         <div className="channel-head">
           <div className="channel-id">
@@ -37,6 +55,8 @@ export function ChannelPage({ tab }: { tab: 'videos' | 'playlists' }) {
             <div className="channel-text">
               <h1 className="channel-name">{CHANNEL_NAME}</h1>
               <p className="muted">{counts(videos, playlists)}</p>
+              {/* Plain text: React escapes it, and line breaks show as written. */}
+              {bio && <p className="channel-bio">{bio}</p>}
             </div>
           </div>
           <nav className="tabs" aria-label="Channel">

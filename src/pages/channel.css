@@ -14,6 +14,14 @@
   }
 }
 
+/* The owner's picture fills the same box, cropped (never stretched) at every width. */
+.banner-picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .particle {
   position: absolute;
   opacity: 0.8;
@@ -162,4 +170,14 @@
   line-height: 1.4;
   color: var(--text);
   border: var(--border-width) solid var(--border);
+}
+
+/* The owner's bio, under the channel name: plain text, line breaks kept. */
+.channel-bio {
+  margin: 4px 0 0;
+  max-width: 60ch;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }

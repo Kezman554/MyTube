@@ -1,0 +1,94 @@
+/* Channel settings: two panels, Banner and Bio. Values come from tokens.css only; panels, fields,
+   buttons and alerts are shared (styles/layout.css, styles/buttons.css, admin.css for action rows). */
+
+.settings {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-part {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-part > .panel-title,
+.settings-part > p {
+  margin: 0;
+}
+
+/* The banner preview, cropped as the channel crops it: the banner is full width at a fixed height
+   (channel.css), so the preview takes a phone banner's proportions (390 x 128) on phones and a laptop
+   banner's (1280 x 190) from 768px up, rather than this panel's width at the banner's height. */
+.settings-preview {
+  position: relative;
+  border: var(--border-width) solid var(--border);
+}
+
+.settings-preview .banner {
+  height: auto;
+  aspect-ratio: 390 / 128;
+}
+
+@media (min-width: 768px) {
+  .settings-preview .banner {
+    height: auto;
+    aspect-ratio: 1280 / 190;
+  }
+}
+
+.settings-preview-chip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--surface);
+}
+
+.settings-bio {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-bio-input {
+  min-height: 120px;
+}
+
+.settings-bio-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.settings-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Over the limit: the count turns to the danger colour and Save explains, so colour is never alone. */
+.settings-count-over {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+/* Saved or not, always in words: green with a tick, or a magenta border while there are changes. */
+.save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 10px;
+  justify-self: start;
+  font-weight: 600;
+  border: var(--border-width) solid;
+}
+
+.save-state-saved {
+  color: var(--positive);
+  border-color: var(--positive);
+}
+
+.save-state-unsaved {
+  color: var(--text);
+  border-color: var(--attention);
+}

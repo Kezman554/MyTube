@@ -1,6 +1,7 @@
 import { deleteVideoRow, first, getUploadByKey, getVideo, getVideoByKey, run, type User, type Video, type VideoCounts } from './db'
 import type { ApiFunction } from './env'
 import { powersOf } from './guards'
+import { imageVersion, sniffImage } from './images'
 import { isAdmin, type Power } from './powers'
 import { deleteObject, newThumbnailKey, VIDEO_PREFIX } from './storage'
 import { MiB } from './uploads'
@@ -36,9 +37,7 @@ export function thumbnailUrl(videoId: number, thumbnailKey: string) {
   return `/api/thumbnails/${videoId}?v=${thumbnailVersion(thumbnailKey)}`
 }
 
-export function thumbnailVersion(key: string) {
-  return key.slice(key.lastIndexOf('/') + 1, key.lastIndexOf('/') + 9)
-}
+export const thumbnailVersion = imageVersion
 
 export async function loadVideo(db: D1Database, id: string | string[] | undefined) {
   const n = Number(id)
@@ -89,25 +88,7 @@ export async function isAdminId(db: D1Database, userId: number) {
   return (await first<{ role: string }>(db, 'SELECT role FROM users WHERE id = ?', userId))?.role === 'admin'
 }
 
-// Thumbnails: the type is decided from the file's first bytes, never from its name or the browser.
-const THUMBNAIL_TYPES = [
-  { type: 'image/jpeg', ext: 'jpg', matches: (b: Uint8Array) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
-  {
-    type: 'image/png',
-    ext: 'png',
-    matches: (b: Uint8Array) => [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((v, i) => b[i] === v),
-  },
-  {
-    type: 'image/webp',
-    ext: 'webp',
-    matches: (b: Uint8Array) => ascii(b, 0, 4) === 'RIFF' && ascii(b, 8, 12) === 'WEBP',
-  },
-]
-
-function ascii(bytes: Uint8Array, from: number, to: number) {
-  return String.fromCharCode(...bytes.subarray(from, to))
-}
-
+// Thumbnails: JPG, PNG or WebP by their bytes (lib/images.ts), up to 5 MB.
 export type Thumbnail = { key: string; contentType: string; bytes: Uint8Array }
 
 // Reads a thumbnail form field. Returns null when there is none, or an error response.
@@ -117,7 +98,7 @@ export async function readThumbnail(value: File | string | null): Promise<Thumbn
   if (value.size > THUMBNAIL_MAX_BYTES) return videoError(413, 'thumbnail_too_large', 'Thumbnails can be up to 5 MB.')
   if (value.size === 0) return null
   const bytes = new Uint8Array(await value.arrayBuffer())
-  const kind = THUMBNAIL_TYPES.find((t) => t.matches(bytes))
+  const kind = sniffImage(bytes)
   if (!kind) return videoError(415, 'unsupported_thumbnail', 'Thumbnails must be JPG, PNG or WebP images.')
   return { key: newThumbnailKey(`thumbnail.${kind.ext}`), contentType: kind.type, bytes }
 }

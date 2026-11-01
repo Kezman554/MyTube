@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { can, isAdmin, useMe } from '../auth/MeContext'
+import { getChannel, setChannelOwner, type Channel } from '../channel/api'
 import { ADMIN_POWERS, POWER_LABELS, POWERS, type Power } from '../auth/powers'
 import { useLoad } from '../lib/useLoad'
 import { LoadFailed, Loading } from '../pages/Status'
@@ -9,10 +10,14 @@ import './admin.css'
 // approve_users: approve or reject people who have registered, then manage everyone approved.
 // Removed users are not listed. Rejecting and removing both set status = 'removed' and ask first.
 // Mute needs moderate_comments too; only the admin sees and changes each person's powers and admin
-// access. Helpers see only the people they can act on, and only the controls their powers work.
+// access, and who owns the channel. Helpers see only the people they can act on, and only the controls
+// their powers work.
 export function Users() {
   const me = useMe()
   const [users, reload] = useLoad('users', listUsers)
+  const [channel, reloadChannel] = useLoad('channel-owner', getChannel)
+  // The owner controls are the admin's; while the channel is loading or failed, they wait.
+  const owner = isAdmin(me) && channel.kind === 'ready' ? { channel: channel.value, onChanged: reloadChannel } : null
 
   if (users.kind === 'loading') return <Loading what="users" />
   if (users.kind === 'failed') return <LoadFailed message={users.message} onRetry={reload} />
@@ -48,7 +53,7 @@ export function Users() {
         ) : (
           <ul className="admin-list">
             {approved.map((user) => (
-              <ApprovedRow key={user.id} user={user} onChanged={reload} />
+              <ApprovedRow key={user.id} user={user} owner={owner} onChanged={reload} />
             ))}
           </ul>
         )}
@@ -124,7 +129,12 @@ function PendingRow({ user, onChanged }: { user: AdminUser; onChanged: () => voi
   )
 }
 
-function ApprovedRow({ user, onChanged }: { user: AdminUser; onChanged: () => void }) {
+interface OwnerProps {
+  channel: Channel
+  onChanged: () => void
+}
+
+function ApprovedRow({ user, owner, onChanged }: { user: AdminUser; owner: OwnerProps | null; onChanged: () => void }) {
   const me = useMe()
   const [confirm, setConfirm] = useState<'none' | 'mute' | 'remove'>('none')
   const { busy, error, change } = useChange(user.id, onChanged)
@@ -143,6 +153,7 @@ function ApprovedRow({ user, onChanged }: { user: AdminUser; onChanged: () => vo
       <li className="admin-item">
         <Who user={user} />
         <p className="muted">{user.role === 'admin' ? 'Admin' : ''}{self ? ' (you)' : ''}</p>
+        {owner?.channel.owner?.id === user.id && <span className="chip owner-chip">Channel owner</span>}
       </li>
     )
   }
@@ -150,6 +161,7 @@ function ApprovedRow({ user, onChanged }: { user: AdminUser; onChanged: () => vo
   return (
     <li className="admin-item">
       <Who user={user} />
+      {owner && <ChannelOwnerControl user={user} {...owner} />}
       {isAdmin(me) && <PowersEditor user={user} onSaved={onChanged} />}
       <ErrorLine error={error} />
       {confirm === 'none' ? (
@@ -275,5 +287,66 @@ function PowersEditor({ user, onSaved }: { user: AdminUser; onSaved: () => void 
       </div>
       <ErrorLine error={error} />
     </fieldset>
+  )
+}
+
+// The admin only: whose channel it is. One owner at a time, so making someone owner while another is
+// asks first, then moves it. The owner can change the banner and bio in Channel settings.
+function ChannelOwnerControl({ user, channel, onChanged }: { user: AdminUser } & OwnerProps) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const current = channel.owner
+  const isOwner = current?.id === user.id
+
+  async function set(userId: number | null) {
+    setBusy(true)
+    setError(null)
+    const result = await setChannelOwner(userId)
+    setBusy(false)
+    setConfirming(false)
+    if (result.ok) onChanged()
+    else setError(result.message)
+  }
+
+  return (
+    <div className="owner-control">
+      {isOwner ? (
+        <div className="admin-actions">
+          <span className="chip owner-chip">Channel owner</span>
+          <button type="button" className="btn btn-quiet btn-small" disabled={busy} onClick={() => void set(null)}>
+            Stop being owner
+          </button>
+        </div>
+      ) : confirming ? (
+        <div className="admin-actions">
+          <p className="admin-confirm">
+            Make {user.username} the channel owner? {current!.username} stops being the owner.
+          </p>
+          <button type="button" className="btn btn-small" disabled={busy} onClick={() => void set(user.id)}>
+            Yes, move it
+          </button>
+          <button type="button" className="btn btn-quiet btn-small" disabled={busy} onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="admin-actions">
+          <button
+            type="button"
+            className="btn btn-quiet btn-small"
+            disabled={busy}
+            onClick={() => (current ? setConfirming(true) : void set(user.id))}
+          >
+            Make channel owner
+          </button>
+        </div>
+      )}
+      {error && (
+        <p className="alert-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   )
 }

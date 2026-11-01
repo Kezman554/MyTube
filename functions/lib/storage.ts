@@ -1,10 +1,11 @@
-// R2 access for videos and thumbnails. The bucket is private: objects only
+// R2 access for videos, thumbnails and the channel banner. The bucket is private: objects only
 // ever leave through getObject, behind the API's approval check.
 
 export const VIDEO_PREFIX = 'videos/'
 export const THUMBNAIL_PREFIX = 'thumbnails/'
+export const BANNER_PREFIX = 'banners/'
 
-const PREFIXES = [VIDEO_PREFIX, THUMBNAIL_PREFIX]
+const PREFIXES = [VIDEO_PREFIX, THUMBNAIL_PREFIX, BANNER_PREFIX]
 
 function assertKey(key: string): void {
   if (!PREFIXES.some((p) => key.startsWith(p) && key.length > p.length) || key.includes('..')) {
@@ -23,6 +24,10 @@ export function newVideoKey(filename: string): string {
 
 export function newThumbnailKey(filename: string): string {
   return `${THUMBNAIL_PREFIX}${crypto.randomUUID()}${extension(filename)}`
+}
+
+export function newBannerKey(ext: string): string {
+  return `${BANNER_PREFIX}${crypto.randomUUID()}.${ext}`
 }
 
 export async function putObject(

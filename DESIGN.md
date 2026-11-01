@@ -56,6 +56,7 @@ The End stone texture is pure CSS: layered `conic-gradient` squares at prime-num
 - Green = active, amber = muted. Each always comes with its word.
 - Destructive actions (Remove, Turn away, Reject) are a danger outline plus explicit wording, never colour alone.
 - **Deliberate exceptions, don't "fix" them:** the banner and the avatar's black face stay dark in light mode, and the purple particles are decoration only. Particles never sit under body text.
+- **The owner's banner:** the channel's owner can replace the particle banner with a picture of their own (Channel settings). It fills the same box, cropped with `object-fit: cover`, never stretched, and nothing is drawn over it. Removing it brings the particle banner back unchanged. The name and avatar stay fixed.
 
 ## Contrast
 - Text 4.5:1 and non-text 3:1 in both modes, with a margin, not a bare pass (aim for 5:1 and 3.5:1). Measured by script, never by eye: `npm run contrast` (`scripts/contrast-audit.mjs`, also run by `npm test`) lists every pairing the components use, fails under a floor and flags anything under the margin. A new colour use in a component gets a line in its `PAIRINGS`.

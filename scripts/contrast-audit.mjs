@@ -18,7 +18,7 @@ const MARGIN = { text: 5, 'non-text': 3.5 }
 // (top bar, inputs, menu hover).
 const PAIRINGS = [
   // Text
-  ['text', 'ground-texture', 'text', 'body text, card titles, chips on the page'],
+  ['text', 'ground-texture', 'text', 'body text, card titles, chips on the page, the channel bio'],
   ['text', 'ground', 'text', 'wordmark in the top bar, input text, menu item on hover'],
   ['text', 'surface', 'text', 'panels, menu, quiet buttons, comment initials, alerts in panels'],
   ['text-secondary', 'ground-texture', 'text', '.muted, card meta, comment times and counts on the page'],
@@ -50,15 +50,16 @@ const PAIRINGS = [
   ['danger-outline', 'ground-texture', 'non-text', 'danger buttons and error alerts on the page'],
   ['danger-outline', 'surface', 'non-text', 'danger buttons and error alerts in panels'],
   ['attention', 'ground-texture', 'non-text', 'attention panel border (something waiting)'],
+  ['attention', 'surface', 'non-text', 'Channel settings "Not saved yet" border in panels'],
   ['positive', 'ground-texture', 'non-text', 'success alert border on the page'],
-  ['positive', 'surface', 'non-text', 'success alert border in panels'],
+  ['positive', 'surface', 'non-text', 'success alert border in panels; Channel settings "Saved" border'],
+  ['positive', 'surface', 'text', 'Channel settings "Saved" with its tick, in panels'],
 ]
 
 // Roles with no component using them yet, held to the text floor because DESIGN.md says each always
 // comes with its word. Enforced, but left out of "lowest still in use".
 const RESERVED = [
   ['positive', 'ground-texture', 'text', 'reserved: green "active" wording'],
-  ['positive', 'surface', 'text', 'reserved: green "active" wording'],
   ['warning', 'ground-texture', 'text', 'reserved: amber "muted" wording'],
   ['warning', 'surface', 'text', 'reserved: amber "muted" wording'],
 ]

@@ -254,3 +254,14 @@ h3.admin-item-name {
   align-items: center;
   gap: 6px;
 }
+
+/* Users tab, the admin only: the channel owner chip and its control. */
+.owner-control {
+  display: grid;
+  gap: 8px;
+}
+
+.owner-chip {
+  justify-self: start;
+  border-color: var(--accent-fill);
+}

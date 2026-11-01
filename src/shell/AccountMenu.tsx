@@ -6,7 +6,7 @@ import { useTheme } from '../lib/theme'
 import { MoonMark, SunMark } from './Pixels'
 
 // The square account button in the top bar, and the menu it opens: who you are, then the pages
-// your powers reach. Upload shows with the upload power; Admin with any power an admin tab needs
+// your powers reach. Channel settings shows for the channel's owner and the admin; Upload with the upload power; Admin with any power an admin tab needs
 // (the admin holds them all).
 // A disclosure (button + list of links), not an ARIA menu, so Tab and Enter work as everywhere else.
 export function AccountMenu({ me }: { me: ApprovedMe }) {
@@ -80,6 +80,13 @@ export function AccountMenu({ me }: { me: ApprovedMe }) {
                 Playlists
               </Link>
             </li>
+            {me.edits_channel && (
+              <li>
+                <Link to="/channel/edit" onClick={close}>
+                  Channel settings
+                </Link>
+              </li>
+            )}
             {can(me, 'upload') && (
               <li>
                 <Link to="/upload" onClick={close}>

@@ -20,6 +20,8 @@ export interface Me {
   status: Status
   // Every power for the admin.
   powers: Power[]
+  // Whether Channel settings is theirs (the channel's owner, or the admin).
+  edits_channel: boolean
 }
 
 export async function fetchMe(): Promise<Me> {
