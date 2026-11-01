@@ -39,7 +39,7 @@ function SaveState({ saved, id }: { saved: boolean; id?: string }) {
     <p id={id} className={saved ? 'save-state save-state-saved' : 'save-state save-state-unsaved'} role="status">
       {saved ? (
         <>
-          <TickMark size={14} /> Saved
+          <TickMark size={16} /> Saved
         </>
       ) : (
         'Not saved yet'

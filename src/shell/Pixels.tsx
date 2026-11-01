@@ -30,11 +30,11 @@ export function EnderFace({ size, label }: { size: number; label?: string }) {
   )
 }
 
-// A tick for "Saved" on Channel settings, drawn in the text colour beside the word.
+// A tick for "Saved" on Channel settings, two pixels thick, drawn in the text colour beside the word.
 export function TickMark({ size }: { size: number }) {
   return (
     <svg className="pixel-mode" width={size} height={size} viewBox="0 0 8 8" shapeRendering="crispEdges" aria-hidden="true">
-      <path d="M7 1 H8 V3 H7 Z M6 3 H7 V4 H6 Z M5 4 H6 V5 H5 Z M4 5 H5 V6 H4 Z M3 6 H4 V7 H3 Z M2 5 H3 V6 H2 Z M1 4 H2 V5 H1 Z M0 3 H1 V4 H0 Z" />
+      <path d="M6 2 H8 V3 H6 Z M5 3 H7 V4 H5 Z M0 4 H2 V5 H0 Z M4 4 H6 V5 H4 Z M1 5 H5 V6 H1 Z M2 6 H4 V7 H2 Z" />
     </svg>
   )
 }
