@@ -79,3 +79,26 @@ export const listRecentComments = () =>
   request('/api/admin/comments', {}, (b: { comments: RecentComment[] }) => b.comments)
 
 export const deleteComment = (id: number) => request(`/api/admin/comments/${id}`, { method: 'DELETE' }, () => true)
+
+// GET /api/admin/dashboard (the admin only). The last 7 days against the 7 before.
+export interface WeekCount {
+  current: number
+  previous: number
+}
+
+export interface Dashboard {
+  generated_at: string
+  attention: { pending_users: number; drafts: number; leftover_uploads: { count: number; bytes: number } }
+  week: { views: WeekCount; likes: WeekCount; comments: WeekCount; users: WeekCount }
+  watchers: { id: number; username: string; is_admin: boolean; views_7d: number; last_view_at: string | null }[]
+  top_videos: { id: number; title: string; thumbnail_url: string | null; views_30d: number }[]
+  storage: {
+    bytes: number
+    objects: number
+    by_prefix: { videos: number; thumbnails: number; banners: number }
+    free_tier_bytes: number
+    rows: { users: number; videos: number; comments: number }
+  }
+}
+
+export const getDashboard = () => request('/api/admin/dashboard', {}, (b: Dashboard) => b)

@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { AuthGate } from './auth/AuthGate'
-import { can, useMe, type ApprovedMe } from './auth/MeContext'
-import { ADMIN_TABS, adminTabsFor } from './admin/tabs'
+import { can, isAdmin, useMe, type ApprovedMe } from './auth/MeContext'
+import { ADMIN_TABS, adminTabsFor, opens } from './admin/tabs'
 import { AdminPage } from './pages/AdminPage'
 import { ChannelPage } from './pages/ChannelPage'
 import { ChannelSettingsPage } from './pages/ChannelSettingsPage'
@@ -19,11 +19,11 @@ function Only({ allow, children }: { allow: (me: ApprovedMe) => boolean; childre
   return allow(useMe()) ? children : <NotFoundPage />
 }
 
-// /admin is the Users tab. Someone without approve_users but with another tab's power is taken to
-// their first tab instead; with none of them, it is Not found.
+// /admin is the admin's Dashboard. Anyone else with a tab's power is taken to their first tab; with
+// none of them, it is Not found.
 function AdminHome() {
   const me = useMe()
-  if (can(me, 'approve_users')) return <AdminPage tab="users" />
+  if (isAdmin(me)) return <AdminPage tab="dashboard" />
   const first = adminTabsFor(me)[0]
   return first ? <Navigate to={first.to} replace /> : <NotFoundPage />
 }
@@ -64,12 +64,12 @@ function App() {
               }
             />
             <Route path="admin" element={<AdminHome />} />
-            {ADMIN_TABS.filter((t) => t.tab !== 'users').map((t) => (
+            {ADMIN_TABS.filter((t) => t.tab !== 'dashboard').map((t) => (
               <Route
                 key={t.tab}
                 path={t.to.slice(1)}
                 element={
-                  <Only allow={(me) => can(me, t.power)}>
+                  <Only allow={(me) => opens(me, t.power)}>
                     <AdminPage tab={t.tab} />
                   </Only>
                 }

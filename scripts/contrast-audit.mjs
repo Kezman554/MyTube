@@ -34,7 +34,7 @@ const PAIRINGS = [
 
   // Icons, graphics and state indicators
   ['ground', 'accent-fill', 'non-text', 'logo play arrow on its block'],
-  ['accent-fill', 'ground', 'non-text', 'logo block in the top bar; upload progress fill in its bar'],
+  ['accent-fill', 'ground', 'non-text', 'logo block in the top bar; upload progress fill in its bar; dashboard storage bar'],
   ['accent-fill', 'ground-texture', 'non-text', 'primary button fill against the page'],
   ['accent-fill', 'surface', 'non-text', 'primary button fill in panels; checked checkbox; admin access switch on (track and thumb)'],
   ['attention', 'avatar-face', 'non-text', 'avatar eyes'],

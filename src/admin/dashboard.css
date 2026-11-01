@@ -1,0 +1,187 @@
+/* The admin's dashboard. Values come from tokens.css only; panels, chips and thumbnails are shared. */
+
+.dash {
+  display: grid;
+  gap: 16px;
+}
+
+.dash-calm {
+  margin: 0;
+}
+
+.dash-title {
+  margin: 0 0 10px;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.dash-attention {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+/* The week: 2 x 2 on a phone, 4 across from 720px. */
+.dash-tiles {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 720px) {
+  .dash-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.dash-tile {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 14px;
+  min-width: 0;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+}
+
+.dash-tile-number {
+  font-family: var(--font-pixel);
+  font-size: 1.375rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.dash-tile-label {
+  font-weight: 600;
+}
+
+.dash-tile-change {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* Watchers beside the top videos on a laptop, one above the other on a phone. */
+.dash-columns {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .dash-columns {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.dash-columns > .panel > p,
+.dash .panel > p {
+  margin: 6px 0 0;
+}
+
+.dash-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+
+.dash-watcher {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-top: var(--border-width) solid var(--divider);
+}
+
+.dash-watcher-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dash-watcher-views {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dash-watcher-last {
+  grid-column: 1 / -1;
+  font-size: 0.8125rem;
+}
+
+.dash-top-item {
+  display: grid;
+  grid-template-columns: 24px 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: var(--border-width) solid var(--divider);
+}
+
+.dash-top-rank {
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+}
+
+.dash-top-thumb {
+  display: block;
+}
+
+.dash-top-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-top-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Storage against the free tier, in the upload bar's blocks. */
+.dash-bar {
+  height: 16px;
+  margin-top: 10px;
+  background: var(--ground);
+  border: var(--border-width) solid var(--border);
+}
+
+.dash-bar-fill {
+  height: 100%;
+  min-width: 2px;
+  background: repeating-linear-gradient(to right, var(--accent-fill) 0 14px, var(--accent-bevel) 14px 16px);
+}
+
+.dash-subtitle {
+  margin: 16px 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.dash-facts {
+  margin: 10px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.dash-facts > div {
+  display: grid;
+  gap: 2px;
+}
+
+.dash-facts dt {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.dash-facts dd {
+  margin: 0;
+  font-weight: 600;
+}

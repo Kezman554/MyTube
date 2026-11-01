@@ -30,6 +30,24 @@ export function newBannerKey(ext: string): string {
   return `${BANNER_PREFIX}${crypto.randomUUID()}.${ext}`
 }
 
+export interface StoredObject {
+  key: string
+  size: number
+  uploaded: Date
+}
+
+// Every object under a prefix, following R2's cursor page by page (a page holds up to 1000 objects).
+export async function listAllObjects(bucket: R2Bucket, prefix: string): Promise<StoredObject[]> {
+  const objects: StoredObject[] = []
+  let cursor: string | undefined
+  do {
+    const page = await bucket.list({ prefix, cursor })
+    for (const o of page.objects) objects.push({ key: o.key, size: o.size, uploaded: o.uploaded })
+    cursor = page.truncated ? page.cursor : undefined
+  } while (cursor)
+  return objects
+}
+
 export async function putObject(
   bucket: R2Bucket,
   key: string,

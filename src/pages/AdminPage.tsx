@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router'
+import { Dashboard } from '../admin/Dashboard'
 import { Drafts } from '../admin/Drafts'
 import { LeftoverUploads } from '../admin/LeftoverUploads'
 import { Playlists } from '../admin/Playlists'
@@ -23,6 +24,7 @@ export function AdminPage({ tab }: { tab: AdminTab }) {
           </NavLink>
         ))}
       </nav>
+      {tab === 'dashboard' && <Dashboard />}
       {tab === 'users' && <Users />}
       {tab === 'drafts' && <Drafts />}
       {tab === 'comments' && <RecentComments />}

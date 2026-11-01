@@ -74,6 +74,7 @@ const EXPECTED: Record<string, Need> = {
   'GET /api/admin/orphans': 'admin',
   'DELETE /api/admin/orphans': 'admin',
   'PUT /api/admin/channel/owner': 'admin',
+  'GET /api/admin/dashboard': 'admin',
 }
 
 type Handler = (context: never) => Response | Promise<Response>
