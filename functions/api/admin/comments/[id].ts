@@ -4,6 +4,7 @@ import { requireRole } from '../../../lib/guards'
 
 // DELETE /api/admin/comments/:id -> { ok: true }: removes any comment for good. 404 when there is no
 // such comment, including one already deleted, so a second click reports that rather than failing silently.
+// Deleting a top-level comment deletes its replies too.
 const remove: ApiFunction = async ({ env, params }) => {
   const id = Number(params.id)
   if (!Number.isSafeInteger(id) || id <= 0 || !(await deleteComment(env.DB, id))) {

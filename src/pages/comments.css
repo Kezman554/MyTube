@@ -37,6 +37,11 @@
   gap: 12px;
 }
 
+.comment-box-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 .comment-count {
   font-size: 0.8125rem;
   color: var(--text-secondary);
@@ -106,20 +111,76 @@
   overflow-wrap: anywhere;
 }
 
-/* Admin only: Delete under each comment, then an inline confirm. */
+/* Reply under each comment and reply; for the admin also Delete, then an inline confirm. */
 .comment-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 16px;
+  font-size: 0.8125rem;
+}
+
+/* Text-link buttons, padded to a comfortable tap height without looking bigger. */
+.comment-action,
+.comment-toggle {
+  min-height: 24px;
   font-size: 0.8125rem;
 }
 
 .comment-delete {
-  font-size: 0.8125rem;
   color: var(--danger-text);
 }
 
 .comment-confirm {
   flex-basis: 100%;
+}
+
+/* Threads: a top-level comment, then its replies indented to line up with its text. */
+.comment-thread {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.comment-replies {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin-left: 42px;
+  min-width: 0;
+}
+
+.comment-replies > * {
+  justify-self: stretch;
+}
+
+.comment-replies > .comment-toggle {
+  justify-self: start;
+}
+
+.comment-reply-list {
+  gap: 12px;
+}
+
+.comment-reply .comment-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 0.5625rem;
+}
+
+/* "@username" in front of a reply to a reply. */
+.comment-mention {
+  font-weight: 600;
+}
+
+/* The comment a link from the admin's Comments tab points at. */
+.comment-linked {
+  outline: var(--border-width) solid var(--link);
+  outline-offset: 4px;
+}
+
+@media (max-width: 480px) {
+  .comment-replies {
+    margin-left: 16px;
+  }
 }

@@ -1,28 +1,51 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useLocation } from 'react-router'
 import { deleteComment } from '../admin/api'
 import { useMe } from '../auth/MeContext'
 import { commentAge } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
-import { COMMENT_MAX, listComments, postComment, type Comment } from '../videos/api'
+import { COMMENT_MAX, listComments, postComment, type Comment, type Reply, type Thread } from '../videos/api'
 import { LoadFailed, Loading } from './Status'
 import './comments.css'
 
 // The counter appears once a comment gets this close to the limit.
 const COUNTER_FROM = COMMENT_MAX - 200
 
+// A thread with more replies than this shows them behind "N replies".
+const REPLIES_SHOWN = 3
+
+// Which comment the open reply box answers. It always opens under the top-level comment (threadId),
+// whether Reply was pressed on that comment or on one of its replies (commentId).
+interface ReplyTarget {
+  threadId: number
+  commentId: number
+  username: string
+}
+
 // Comments under a video: the box to add one (or a short message for muted users), then the
-// comments newest first with who wrote them and when.
+// comments newest first with who wrote them and when, each with its replies oldest first.
 export function Comments({ videoId, published }: { videoId: number; published: boolean }) {
   const { user } = useMe()
   const [comments, reload] = useLoad(`comments:${videoId}`, () => listComments(videoId))
-  // The server is the judge: if it says muted, the box goes even if this page was loaded before the mute.
+  // The server is the judge: if it says muted, the boxes go even if this page was loaded before the mute.
   const [mutedNow, setMutedNow] = useState(false)
   const muted = !user.can_comment || mutedNow
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null)
+  const canReply = published && !muted
+
+  // /watch/:id#comment-N (from the admin's Comments tab) scrolls to that comment once it has loaded.
+  const { hash } = useLocation()
+  const linked = /^#comment-(\d+)$/.exec(hash)?.[1]
+  const linkedId = linked ? Number(linked) : null
+  const ready = comments.kind === 'ready'
+  useEffect(() => {
+    if (ready && linkedId !== null) document.getElementById(`comment-${linkedId}`)?.scrollIntoView({ block: 'center' })
+  }, [ready, linkedId])
 
   return (
     <section className="comments" aria-labelledby="comments-title">
       <h2 id="comments-title" className="comments-title">
-        Comments{comments.kind === 'ready' && comments.value.length > 0 ? ` ${comments.value.length}` : ''}
+        Comments{comments.kind === 'ready' && comments.value.count > 0 ? ` ${comments.value.count}` : ''}
       </h2>
 
       {!published ? (
@@ -35,13 +58,24 @@ export function Comments({ videoId, published }: { videoId: number; published: b
 
       {comments.kind === 'loading' && <Loading what="comments" />}
       {comments.kind === 'failed' && <LoadFailed message={comments.message} onRetry={reload} />}
-      {comments.kind === 'ready' && comments.value.length === 0 && published && (
+      {comments.kind === 'ready' && comments.value.comments.length === 0 && published && (
         <p className="muted">No comments yet.{muted ? '' : ' Be the first!'}</p>
       )}
-      {comments.kind === 'ready' && comments.value.length > 0 && (
+      {comments.kind === 'ready' && comments.value.comments.length > 0 && (
         <ul className="comment-list">
-          {comments.value.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} canDelete={user.role === 'admin'} onDeleted={reload} />
+          {comments.value.comments.map((thread) => (
+            <ThreadItem
+              key={thread.id}
+              videoId={videoId}
+              thread={thread}
+              canDelete={user.role === 'admin'}
+              canReply={canReply}
+              linkedId={linkedId}
+              replyTarget={replyTarget?.threadId === thread.id ? replyTarget : null}
+              onReply={setReplyTarget}
+              onChanged={reload}
+              onMuted={() => setMutedNow(true)}
+            />
           ))}
         </ul>
       )}
@@ -49,19 +83,132 @@ export function Comments({ videoId, published }: { videoId: number; published: b
   )
 }
 
-function CommentBox({ videoId, onPosted, onMuted }: { videoId: number; onPosted: () => void; onMuted: () => void }) {
+function ThreadItem({
+  videoId,
+  thread,
+  canDelete,
+  canReply,
+  linkedId,
+  replyTarget,
+  onReply,
+  onChanged,
+  onMuted,
+}: {
+  videoId: number
+  thread: Thread
+  canDelete: boolean
+  canReply: boolean
+  linkedId: number | null
+  replyTarget: ReplyTarget | null
+  onReply: (target: ReplyTarget | null) => void
+  onChanged: () => void
+  onMuted: () => void
+}) {
+  const { replies } = thread
+  const collapsible = replies.length > REPLIES_SHOWN
+  // A thread opens by itself when a link points at one of its replies.
+  const [expanded, setExpanded] = useState(() => replies.some((r) => r.id === linkedId))
+  const showReplies = !collapsible || expanded
+  const repliesId = useId()
+
+  const reply = (comment: Comment) => onReply({ threadId: thread.id, commentId: comment.id, username: comment.user.username })
+
+  return (
+    <li className="comment-thread">
+      <CommentItem
+        comment={thread}
+        replyCount={replies.length}
+        canDelete={canDelete}
+        canReply={canReply}
+        linked={thread.id === linkedId}
+        onReply={() => reply(thread)}
+        onDeleted={onChanged}
+      />
+      {(replies.length > 0 || replyTarget) && (
+        <div className="comment-replies">
+          {collapsible && (
+            <button
+              type="button"
+              className="btn-link comment-toggle"
+              aria-expanded={expanded}
+              aria-controls={repliesId}
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? 'Hide replies' : `${replies.length} replies`}
+            </button>
+          )}
+          {showReplies && replies.length > 0 && (
+            <ul className="comment-list comment-reply-list" id={repliesId} aria-label={`Replies to ${thread.user.username}`}>
+              {replies.map((r) => (
+                <CommentItem
+                  key={r.id}
+                  comment={r}
+                  canDelete={canDelete}
+                  canReply={canReply}
+                  linked={r.id === linkedId}
+                  onReply={() => reply(r)}
+                  onDeleted={onChanged}
+                />
+              ))}
+            </ul>
+          )}
+          {replyTarget && canReply && (
+            <CommentBox
+              videoId={videoId}
+              replyTo={replyTarget}
+              onPosted={() => {
+                onReply(null)
+                // Show the new reply even in a collapsed thread.
+                setExpanded(true)
+                onChanged()
+              }}
+              onCancel={() => onReply(null)}
+              onMuted={onMuted}
+              onGone={onChanged}
+            />
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function CommentBox({
+  videoId,
+  replyTo,
+  onPosted,
+  onCancel,
+  onMuted,
+  onGone,
+}: {
+  videoId: number
+  replyTo?: ReplyTarget
+  onPosted: () => void
+  onCancel?: () => void
+  onMuted: () => void
+  // The comment being replied to was deleted meanwhile: the list is reloaded so it disappears.
+  onGone?: () => void
+}) {
   const id = useId()
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
   const length = Array.from(text.trim()).length
   const tooLong = length > COMMENT_MAX
+  const input = useRef<HTMLTextAreaElement>(null)
+  const label = replyTo ? `Reply to ${replyTo.username}` : 'Add a comment'
+
+  // A reply box takes the focus when it opens, or moves to another comment in the same thread.
+  const replyToId = replyTo?.commentId
+  useEffect(() => {
+    if (replyToId !== undefined) input.current?.focus()
+  }, [replyToId])
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (!text.trim() || tooLong) return
     setPosting(true)
-    const result = await postComment(videoId, text)
+    const result = await postComment(videoId, text, replyTo?.commentId)
     setPosting(false)
     if (result.ok) {
       setText('')
@@ -71,21 +218,26 @@ function CommentBox({ videoId, onPosted, onMuted }: { videoId: number; onPosted:
       onMuted()
     } else {
       setError(result.message)
+      if (result.status === 400 && replyTo) onGone?.()
     }
   }
 
   return (
-    <form className="comment-box" onSubmit={submit} noValidate>
+    <form className={replyTo ? 'comment-box comment-reply-box' : 'comment-box'} onSubmit={submit} noValidate>
       <label className="visually-hidden" htmlFor={`${id}-text`}>
-        Add a comment
+        {label}
       </label>
       <textarea
+        ref={input}
         id={`${id}-text`}
         className="input comment-input"
         rows={2}
-        placeholder="Add a comment…"
+        placeholder={replyTo ? `Reply to @${replyTo.username}…` : 'Add a comment…'}
         value={text}
         onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && onCancel) onCancel()
+        }}
         aria-describedby={length >= COUNTER_FROM ? `${id}-count` : undefined}
         aria-invalid={tooLong || undefined}
       />
@@ -97,9 +249,16 @@ function CommentBox({ videoId, onPosted, onMuted }: { videoId: number; onPosted:
         ) : (
           <span />
         )}
-        <button type="submit" className="btn btn-small" disabled={posting || !text.trim() || tooLong}>
-          {posting ? 'Posting…' : 'Post'}
-        </button>
+        <div className="comment-box-buttons">
+          {onCancel && (
+            <button type="button" className="btn btn-quiet btn-small" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+          <button type="submit" className="btn btn-small" disabled={posting || !text.trim() || tooLong}>
+            {posting ? 'Posting…' : replyTo ? 'Reply' : 'Post'}
+          </button>
+        </div>
       </div>
       {error && (
         <p className="alert-error" role="alert">
@@ -110,11 +269,30 @@ function CommentBox({ videoId, onPosted, onMuted }: { videoId: number; onPosted:
   )
 }
 
-// The admin also gets Delete, which asks first (inline, as in the admin panel).
-function CommentItem({ comment, canDelete, onDeleted }: { comment: Comment; canDelete: boolean; onDeleted: () => void }) {
+// One comment or reply. Reply opens the box under its thread; the admin also gets Delete, which asks
+// first (inline, as in the admin panel) and says how many replies go with a top-level comment.
+function CommentItem({
+  comment,
+  replyCount = 0,
+  canDelete,
+  canReply,
+  linked,
+  onReply,
+  onDeleted,
+}: {
+  comment: Comment | Reply
+  replyCount?: number
+  canDelete: boolean
+  canReply: boolean
+  linked: boolean
+  onReply: () => void
+  onDeleted: () => void
+}) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isReply = 'parent_id' in comment
+  const replyTo = isReply ? comment.reply_to : null
 
   async function remove() {
     setBusy(true)
@@ -125,8 +303,15 @@ function CommentItem({ comment, canDelete, onDeleted }: { comment: Comment; canD
     else setError(result.message)
   }
 
+  const question = isReply
+    ? 'Delete this reply?'
+    : replyCount === 0
+      ? 'Delete this comment?'
+      : `Delete this comment and its ${replyCount === 1 ? 'reply' : `${replyCount} replies`}?`
+
+  const Tag = isReply ? 'li' : 'div'
   return (
-    <li className="comment">
+    <Tag id={`comment-${comment.id}`} className={`comment${isReply ? ' comment-reply' : ''}${linked ? ' comment-linked' : ''}`}>
       <span className="comment-avatar" aria-hidden="true">
         {comment.user.username.charAt(0).toUpperCase()}
       </span>
@@ -137,31 +322,42 @@ function CommentItem({ comment, canDelete, onDeleted }: { comment: Comment; canD
             · {commentAge(comment.created_at)}
           </time>
         </p>
-        <p className="comment-body">{comment.body}</p>
-        {canDelete &&
-          (confirming ? (
+        <p className="comment-body">
+          {replyTo && <span className="comment-mention">@{replyTo.username} </span>}
+          {comment.body}
+        </p>
+        {confirming ? (
+          <div className="comment-actions">
+            <span className="comment-confirm">{question}</span>
+            <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => void remove()}>
+              Yes, delete
+            </button>
+            <button type="button" className="btn btn-quiet btn-small" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          (canReply || canDelete) && (
             <div className="comment-actions">
-              <span className="comment-confirm">Delete this comment?</span>
-              <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => void remove()}>
-                Yes, delete
-              </button>
-              <button type="button" className="btn btn-quiet btn-small" onClick={() => setConfirming(false)}>
-                Cancel
-              </button>
+              {canReply && (
+                <button type="button" className="btn-link comment-action" onClick={onReply} aria-label={`Reply to ${comment.user.username}`}>
+                  Reply
+                </button>
+              )}
+              {canDelete && (
+                <button type="button" className="btn-link comment-action comment-delete" onClick={() => setConfirming(true)}>
+                  Delete
+                </button>
+              )}
             </div>
-          ) : (
-            <div className="comment-actions">
-              <button type="button" className="btn-link comment-delete" onClick={() => setConfirming(true)}>
-                Delete
-              </button>
-            </div>
-          ))}
+          )
+        )}
         {error && (
           <p className="alert-error" role="alert">
             {error}
           </p>
         )}
       </div>
-    </li>
+    </Tag>
   )
 }

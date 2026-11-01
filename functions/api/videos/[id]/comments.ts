@@ -1,20 +1,23 @@
-import { addComment, commentJson, listComments, readCommentBody } from '../../../lib/comments'
+import { addComment, commentJson, findReplyTarget, listThreads, readCommentBody, readParentId } from '../../../lib/comments'
 import type { ApiFunction } from '../../../lib/env'
 import { requireApproved } from '../../../lib/guards'
 import { readJsonObject } from '../../../lib/uploads'
 import { canSee, loadVideo, videoError } from '../../../lib/videos'
 
-// GET /api/videos/:id/comments -> { comments: [{ id, body, created_at, user: { id, username } }] },
-// newest first, for anyone who can see the video.
+// GET /api/videos/:id/comments -> { comments: [{ id, body, created_at, user: { id, username },
+//   replies: [{ id, body, created_at, user, parent_id, reply_to: { id, username } | null }] }], count },
+// for anyone who can see the video. Top-level comments newest first, replies oldest first; count
+// includes replies.
 const list: ApiFunction = async ({ env, data, params }) => {
   const video = await loadVideo(env.DB, params.id)
   if (!video || !canSee(data.user!, video)) return videoError(404, 'not_found')
-  const comments = await listComments(env.DB, video.id)
-  return Response.json({ comments: comments.map(commentJson) })
+  return Response.json(await listThreads(env.DB, video.id))
 }
 
-// POST /api/videos/:id/comments { body } -> 201 { comment }. Muted users (can_comment = 0) get 403
-// 'muted'. Comments open once a video is published; the body is trimmed and length-limited.
+// POST /api/videos/:id/comments { body, parent_id? } -> 201 { comment }. Muted users (can_comment = 0)
+// get 403 'muted'. Comments open once a video is published; the body is trimmed and length-limited.
+// parent_id makes it a reply: it must be a comment on this video (else 400 'invalid_parent'), and a
+// reply to a reply is stored against that reply's parent, so threads are one level deep.
 const post: ApiFunction = async ({ request, env, data, params }) => {
   const user = data.user!
   const video = await loadVideo(env.DB, params.id)
@@ -24,10 +27,18 @@ const post: ApiFunction = async ({ request, env, data, params }) => {
     return videoError(409, 'not_published', 'Comments open once the video is published.')
   }
 
-  const parsed = readCommentBody((await readJsonObject(request))?.body)
+  const input = await readJsonObject(request)
+  const parsed = readCommentBody(input?.body)
   if ('message' in parsed) return videoError(400, 'invalid_comment', parsed.message)
 
-  const comment = await addComment(env.DB, video.id, user.id, parsed.body)
+  const parent = readParentId(input?.parent_id)
+  if ('message' in parent) return videoError(400, 'invalid_parent', parent.message)
+  const reply = parent.id === null ? null : await findReplyTarget(env.DB, video.id, parent.id)
+  if (parent.id !== null && !reply) {
+    return videoError(400, 'invalid_parent', 'That comment has been deleted, so it can no longer be replied to.')
+  }
+
+  const comment = await addComment(env.DB, video.id, user.id, parsed.body, reply)
   return Response.json({ comment: commentJson(comment) }, { status: 201 })
 }
 

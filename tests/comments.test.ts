@@ -190,3 +190,123 @@ describe('admin moderation', () => {
     expect((await recent(creator)).status).toBe(403)
   })
 })
+
+describe('replies', () => {
+  const reply = (as: User, videoId: number, parentId: unknown, body = 'A reply') =>
+    call(postRoute, as, 'POST', `/api/videos/${videoId}/comments`, { id: String(videoId) }, { body, parent_id: parentId })
+
+  it('lists top-level comments newest first, each with its replies oldest first, and counts replies', async () => {
+    const v = await video()
+    const a = (await post(viewer, v.id, 'First')).json.comment
+    const b = (await post(other, v.id, 'Second')).json.comment
+    const r1 = (await reply(creator, v.id, a.id, 'Reply one')).json.comment
+    const r2 = (await reply(other, v.id, a.id, 'Reply two')).json.comment
+    await run(env.DB, "UPDATE comments SET created_at = '2026-10-02T00:00:00Z' WHERE id IN (?, ?)", a.id, r2.id)
+    await run(env.DB, "UPDATE comments SET created_at = '2026-10-03T00:00:00Z' WHERE id IN (?, ?)", b.id, r1.id)
+
+    const { json } = await list(viewer, v.id)
+    expect(json.count).toBe(4)
+    expect(json.comments.map((c: Json) => c.body)).toEqual(['Second', 'First'])
+    expect(json.comments[0].replies).toEqual([])
+    expect(json.comments[1].replies.map((r: Json) => r.body)).toEqual(['Reply two', 'Reply one'])
+    expect(json.comments[1].replies[0]).toMatchObject({ parent_id: a.id, reply_to: null, user: { username: 'AuntieJo' } })
+    expect(json.comments[1]).not.toHaveProperty('parent_id')
+  })
+
+  it('keeps nesting to one level: a reply to a reply goes under the top-level comment and names who it answers', async () => {
+    const v = await video()
+    const top = (await post(viewer, v.id, 'Top')).json.comment
+    const first = (await reply(creator, v.id, top.id, 'Under top')).json.comment
+    const res = await reply(other, v.id, first.id, 'Under the reply')
+    expect(res.status).toBe(201)
+    expect(res.json.comment).toMatchObject({ parent_id: top.id, reply_to: { id: creator.id, username: 'CrAzYeNdErMaN' } })
+    const deeper = (await reply(viewer, v.id, res.json.comment.id, 'Deeper still')).json.comment
+    expect(deeper).toMatchObject({ parent_id: top.id, reply_to: { username: 'AuntieJo' } })
+
+    const { json } = await list(viewer, v.id)
+    expect(json.comments).toHaveLength(1)
+    expect(json.comments[0].replies.map((r: Json) => r.body)).toEqual(['Under top', 'Under the reply', 'Deeper still'])
+    expect(json.comments[0].replies.every((r: Json) => !('replies' in r))).toBe(true)
+  })
+
+  it('refuses a parent on another video, a missing parent and a malformed parent_id with 400', async () => {
+    const v = await video()
+    const elsewhere = await video()
+    const theirs = (await post(viewer, elsewhere.id, 'Over here')).json.comment
+    const theirReply = (await reply(other, elsewhere.id, theirs.id)).json.comment
+
+    for (const parentId of [theirs.id, theirReply.id, 999999, 0, -1, 1.5, '1', true, {}]) {
+      const res = await reply(other, v.id, parentId)
+      expect(res.status, String(parentId)).toBe(400)
+      expect(res.json.error).toBe('invalid_parent')
+    }
+    expect((await list(viewer, v.id)).json.count).toBe(0)
+    // parent_id null is an ordinary top-level comment.
+    expect((await reply(other, v.id, null)).json.comment).not.toHaveProperty('parent_id')
+  })
+
+  it("refuses a muted user's reply with 403, before looking at the parent", async () => {
+    const v = await video()
+    const top = (await post(other, v.id, 'Top')).json.comment
+    await setCanComment(false)
+    for (const parentId of [top.id, 999999]) {
+      const res = await reply(viewer, v.id, parentId)
+      expect(res.status).toBe(403)
+      expect(res.json.error).toBe('muted')
+    }
+    await setCanComment(true)
+    expect((await list(viewer, v.id)).json.comments[0].replies).toEqual([])
+    expect((await reply(viewer, v.id, top.id)).status).toBe(201)
+  })
+
+  it('refuses replies on drafts and to those who cannot see the video', async () => {
+    const draft = await video('draft')
+    expect((await reply(creator, draft.id, 1)).json.error).toBe('not_published')
+    expect((await reply(viewer, draft.id, 1)).status).toBe(404)
+  })
+
+  it('deletes a top-level comment with its replies, and a single reply on its own', async () => {
+    const v = await video()
+    const top = (await post(viewer, v.id, 'Top')).json.comment
+    const keep = (await post(other, v.id, 'Keep')).json.comment
+    const r1 = (await reply(other, v.id, top.id)).json.comment
+    await reply(creator, v.id, r1.id)
+    const keptReply = (await reply(viewer, v.id, keep.id)).json.comment
+    const goneReply = (await reply(creator, v.id, keep.id)).json.comment
+    expect((await list(viewer, v.id)).json.count).toBe(6)
+
+    expect((await recent(admin)).json.comments.find((c: Json) => c.id === top.id).reply_count).toBe(2)
+    expect((await remove(admin, top.id)).status).toBe(200)
+    expect((await remove(admin, goneReply.id)).status).toBe(200)
+
+    const { json } = await list(viewer, v.id)
+    expect(json.count).toBe(2)
+    expect(json.comments.map((c: Json) => c.id)).toEqual([keep.id])
+    expect(json.comments[0].replies.map((r: Json) => r.id)).toEqual([keptReply.id])
+    expect((await remove(admin, r1.id)).status).toBe(404)
+  })
+
+  it("keeps the @name on a reply after the reply it answered is deleted", async () => {
+    const v = await video()
+    const top = (await post(viewer, v.id, 'Top')).json.comment
+    const r1 = (await reply(other, v.id, top.id)).json.comment
+    const r2 = (await reply(creator, v.id, r1.id)).json.comment
+    await remove(admin, r1.id)
+    expect((await list(viewer, v.id)).json.comments[0].replies).toEqual([
+      expect.objectContaining({ id: r2.id, reply_to: { id: other.id, username: 'AuntieJo' } }),
+    ])
+  })
+
+  it('marks replies in the admin list with their top-level comment, and counts replies on top-level comments', async () => {
+    const v = await video()
+    const top = (await post(viewer, v.id, 'Top')).json.comment
+    const r1 = (await reply(other, v.id, top.id)).json.comment
+    const r2 = (await reply(creator, v.id, r1.id)).json.comment
+
+    const { json } = await recent(admin)
+    const byId = (id: number) => json.comments.find((c: Json) => c.id === id)
+    expect(byId(top.id)).toMatchObject({ parent: null, reply_count: 2 })
+    expect(byId(r1.id)).toMatchObject({ parent: { id: top.id, username: 'Grandma' }, parent_id: top.id, reply_to: null, reply_count: 0 })
+    expect(byId(r2.id)).toMatchObject({ parent: { id: top.id, username: 'Grandma' }, reply_to: { username: 'AuntieJo' } })
+  })
+})

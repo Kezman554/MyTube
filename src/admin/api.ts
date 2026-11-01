@@ -45,9 +45,15 @@ export interface RecentComment {
   created_at: string
   video: { id: number; title: string }
   user: { id: number; username: string; role: Role; can_comment: boolean }
+  // Set on a reply: the top-level comment it belongs to, and its author.
+  parent: { id: number; username: string } | null
+  // Set on a reply to a reply: whose reply it answered.
+  reply_to?: { id: number; username: string } | null
+  // On a top-level comment, how many replies a Delete takes with it.
+  reply_count: number
 }
 
-// The newest 100 comments on every video.
+// The newest 100 comments on every video, replies included.
 export const listRecentComments = () =>
   request('/api/admin/comments', {}, (b: { comments: RecentComment[] }) => b.comments)
 

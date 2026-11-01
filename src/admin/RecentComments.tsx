@@ -7,7 +7,8 @@ import { deleteComment, listRecentComments, updateUser, type RecentComment } fro
 import '../pages/comments.css'
 import './admin.css'
 
-// Admin only: the newest comments on every video. Delete asks first (it can't be undone);
+// Admin only: the newest comments on every video, replies marked with a link to the comment they
+// belong to. Delete asks first (it can't be undone, and takes a top-level comment's replies with it);
 // Mute is one click because Unmute sits in the same place and the Users tab can undo it too.
 export function RecentComments() {
   const [comments, reload] = useLoad('recent-comments', listRecentComments)
@@ -37,8 +38,12 @@ function CommentRow({ comment, onChanged }: { comment: RecentComment; onChanged:
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { user } = comment
+  const { user, parent } = comment
   const muted = !user.can_comment
+  const n = comment.reply_count
+  const question = parent
+    ? `Delete this reply by ${user.username}?`
+    : `Delete this comment by ${user.username}${n === 0 ? '' : ` and its ${n === 1 ? 'reply' : `${n} replies`}`}?`
 
   // Muting changes every row by the same person, so the whole list is reloaded.
   async function act(action: () => Promise<{ ok: boolean; message?: string }>) {
@@ -61,7 +66,18 @@ function CommentRow({ comment, onChanged }: { comment: RecentComment; onChanged:
           on <Link to={`/watch/${comment.video.id}`}>{comment.video.title}</Link>
         </span>
       </p>
-      <p className="comment-body">{comment.body}</p>
+      {parent && (
+        <p className="comment-meta admin-reply-to">
+          <span className="chip">Reply</span>{' '}
+          <span>
+            to <Link to={`/watch/${comment.video.id}#comment-${parent.id}`}>{parent.username}'s comment</Link>
+          </span>
+        </p>
+      )}
+      <p className="comment-body">
+        {comment.reply_to && <span className="comment-mention">@{comment.reply_to.username} </span>}
+        {comment.body}
+      </p>
       {error && (
         <p className="alert-error" role="alert">
           {error}
@@ -69,7 +85,9 @@ function CommentRow({ comment, onChanged }: { comment: RecentComment; onChanged:
       )}
       {confirming ? (
         <div className="admin-actions">
-          <p className="admin-confirm">Delete this comment by {user.username}? It can't be undone.</p>
+          <p className="admin-confirm">
+            {question} It can't be undone.
+          </p>
           <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => void act(() => deleteComment(comment.id))}>
             Yes, delete
           </button>

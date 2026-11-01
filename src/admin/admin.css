@@ -129,3 +129,11 @@ h3.admin-item-name {
     gap: 20px;
   }
 }
+
+/* Comments tab: "Reply to X's comment" above a reply's text. */
+.admin-reply-to {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
