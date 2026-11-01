@@ -22,7 +22,8 @@ const list: ApiFunction = async (context) => {
 // POST /api/videos/:id/comments { body, parent_id? } -> 201 { comment }. Muted users (can_comment = 0)
 // get 403 'muted'. Comments open once a video is published; the body is trimmed and length-limited.
 // parent_id makes it a reply: it must be a comment on this video (else 400 'invalid_parent'), and a
-// reply to a reply is stored against that reply's parent, so threads are one level deep.
+// reply to a reply is stored against that reply's parent, so threads are one level deep. A parent
+// deleted while the request runs is 404 'invalid_parent' (the insert checks it, see addComment).
 const post: ApiFunction = async (context) => {
   const { request, env, data, params } = context
   const user = data.user!
@@ -44,8 +45,16 @@ const post: ApiFunction = async (context) => {
     return videoError(400, 'invalid_parent', 'That comment has been deleted, so it can no longer be replied to.')
   }
 
-  const comment = await addComment(env.DB, video.id, user.id, parsed.body, reply)
-  return Response.json({ comment: commentJson(comment) }, { status: 201 })
+  const parentGone = () => videoError(404, 'invalid_parent', 'That comment has been deleted, so it can no longer be replied to.')
+  try {
+    const comment = await addComment(env.DB, video.id, user.id, parsed.body, reply)
+    if (!comment) return parentGone()
+    return Response.json({ comment: commentJson(comment) }, { status: 201 })
+  } catch (err) {
+    // The video was deleted between the checks above and the insert.
+    if (!String(err).includes('FOREIGN KEY')) throw err
+    return videoError(404, 'not_found')
+  }
 }
 
 export const onRequestGet = [requireApproved, list]

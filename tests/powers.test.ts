@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { gate, onRequest as middleware } from '../functions/api/_middleware'
 import { onRequestDelete as deleteCommentRoute } from '../functions/api/admin/comments/[id]'
 import { onRequestGet as recentCommentsRoute } from '../functions/api/admin/comments/index'
+import { onRequestPut as putOwnerRoute } from '../functions/api/admin/channel/owner'
 import { onRequestPost as createPlaylistRoute } from '../functions/api/admin/playlists/index'
 import { onRequestPatch as patchUserRoute } from '../functions/api/admin/users/[id]'
 import { onRequestPut as putAdminAccessRoute } from '../functions/api/admin/users/[id]/admin-access'
@@ -11,6 +12,7 @@ import { onRequestGet as listUsersRoute } from '../functions/api/admin/users/ind
 import { onRequestPost as reviewPublishRoute } from '../functions/api/admin/videos/[id]/publish'
 import { onRequestPost as rejectRoute } from '../functions/api/admin/videos/[id]/reject'
 import { onRequestGet as queueRoute } from '../functions/api/admin/videos/index'
+import { onRequestPut as putBioRoute } from '../functions/api/channel/bio'
 import { onRequestGet as meRoute } from '../functions/api/me'
 import { onRequestPost as startUploadRoute } from '../functions/api/uploads/start'
 import { onRequestGet as getVideoRoute } from '../functions/api/videos/[id]'
@@ -19,7 +21,7 @@ import { onRequestPost as publishOwnRoute } from '../functions/api/videos/[id]/p
 import { onRequestPost as createVideoRoute } from '../functions/api/videos/index'
 import { createUpload, createUser, createVideo, getUserById, getVideo, markUploadComplete, run, type User } from '../functions/lib/db'
 import type { Env } from '../functions/lib/env'
-import { ADMIN_POWERS, POWERS, type Power } from '../functions/lib/powers'
+import { ADMIN_POWERS, POWERS, setPowers, type Power } from '../functions/lib/powers'
 import { newVideoKey } from '../functions/lib/storage'
 import { applyMigrations, createTestDb, runChain } from './helpers'
 
@@ -479,5 +481,219 @@ describe('moderation flags on the watch page', () => {
     expect(ids(asKid)).not.toContain(dads.id)
     expect(asKid.comments.find((c: Json) => c.id === top.id).moderation).toMatchObject({ delete: false, mute: true })
     expect(ids((await call(recentCommentsRoute, admin, 'GET', '/api/admin/comments')).json)).toContain(dads.id)
+  })
+})
+
+// Requests through the real middleware on a local host, as wrangler pages dev runs them: the user row
+// and powers are read fresh from D1, exactly as in production.
+async function viaMiddleware(as: User, handlers: unknown, method: string, path: string, params: Record<string, string> = {}, body?: unknown) {
+  const init: RequestInit = { method, body: body === undefined ? undefined : JSON.stringify(body) }
+  const chain = [...middleware, ...(Array.isArray(handlers) ? handlers : [handlers])] as never
+  const request = new Request(`http://localhost:8788${path}`, init)
+  return res(await runChain(chain, { env: { ...env, DEV_EMAIL: as.email }, data: {}, request, params }))
+}
+
+describe("status is the admin's alone for anyone with powers or the channel", () => {
+  const setStatus = (as: User, who: User, status: string) =>
+    viaMiddleware(as, patchUserRoute, 'PATCH', `/api/admin/users/${who.id}`, { id: String(who.id) }, { status })
+  const setOwner = (userId: number | null) => viaMiddleware(admin, putOwnerRoute, 'PUT', '/api/admin/channel/owner', {}, { user_id: userId })
+  const statusOf = async (who: User) => (await getUserById(env.DB, who.id))!.status
+  const person = async (name: string, status: 'approved' | 'pending' = 'approved') =>
+    (await createUser(env.DB, `${name.toLowerCase()}${++seq}@example.com`, `${name}${seq}`, 'viewer', status))!
+
+  // The two things a re-approval would hand back: a power (moderating comments) and the channel.
+  const moderates = async (who: User) => (await viaMiddleware(who, recentCommentsRoute, 'GET', '/api/admin/comments')).status
+  const editsChannel = async (who: User) =>
+    (await viaMiddleware(who, putBioRoute, 'PUT', '/api/channel/bio', {}, { bio: `Bio by ${who.username}` })).status
+
+  afterAll(async () => {
+    await setOwner(null)
+  })
+
+  it('refuses a helper removing, then re-approving, someone with a power or the channel', async () => {
+    await only('approve_users')
+    const mod = await person('Mod')
+    await setPowers(env.DB, mod.id, ['moderate_comments'])
+    const owner = await person('Owner')
+    expect((await setOwner(owner.id)).status).toBe(200)
+    const uploader = await person('Uploader')
+    await setPowers(env.DB, uploader.id, ['upload']) // any power counts, not only the admin ones
+
+    for (const who of [mod, owner, uploader]) {
+      const r = await setStatus(kid, who, 'removed')
+      expect(r.status, who.username).toBe(403)
+      expect(r.json.error).toBe('admin_only')
+      expect(await statusOf(who)).toBe('approved')
+    }
+
+    // The admin removes them; a helper can't bring them back.
+    for (const who of [mod, owner]) expect((await setStatus(admin, who, 'removed')).json.user.status).toBe('removed')
+    expect(await moderates(mod)).toBe(403)
+    expect(await editsChannel(owner)).toBe(403)
+    for (const who of [mod, owner]) {
+      const r = await setStatus(kid, who, 'approved')
+      expect(r.status, who.username).toBe(403)
+      expect(r.json.error).toBe('admin_only')
+      expect(await statusOf(who)).toBe('removed')
+    }
+    expect(await moderates(mod)).toBe(403)
+    expect(await editsChannel(owner)).toBe(403)
+
+    // Powers ticked but paused by the admin access switch still count.
+    await setStatus(admin, mod, 'approved')
+    await viaMiddleware(admin, putAdminAccessRoute, 'PUT', '/x', { id: String(mod.id) }, { admin_access: false })
+    expect((await setStatus(kid, mod, 'removed')).json.error).toBe('admin_only')
+    // A pending person the admin has already given a power waits for the admin too.
+    const early = await person('Early', 'pending')
+    await setPowers(env.DB, early.id, ['upload'])
+    expect((await setStatus(kid, early, 'approved')).json.error).toBe('admin_only')
+  })
+
+  it('still lets a helper approve pending people and remove or re-approve people with no powers', async () => {
+    await only('approve_users')
+    const plain = await person('Plain')
+    const newcomer = await person('Newcomer', 'pending')
+    expect((await setStatus(kid, newcomer, 'approved')).json.user.status).toBe('approved')
+    expect((await setStatus(kid, plain, 'removed')).json.user.status).toBe('removed')
+    expect((await setStatus(kid, plain, 'approved')).json.user.status).toBe('approved')
+  })
+
+  it('gives back the powers and the channel when the admin re-approves', async () => {
+    const mod = await person('Mod')
+    await setPowers(env.DB, mod.id, ['moderate_comments'])
+    const owner = await person('Owner')
+    expect((await setOwner(owner.id)).status).toBe(200)
+    expect(await moderates(mod)).toBe(200)
+    expect(await editsChannel(owner)).toBe(200)
+
+    for (const who of [mod, owner]) expect((await setStatus(admin, who, 'removed')).status).toBe(200)
+    expect(await moderates(mod)).toBe(403)
+    expect(await editsChannel(owner)).toBe(403)
+
+    for (const who of [mod, owner]) expect((await setStatus(admin, who, 'approved')).json.user.status).toBe('approved')
+    expect(await moderates(mod)).toBe(200)
+    expect(await editsChannel(owner)).toBe(200)
+    expect((await viaMiddleware(owner, meRoute, 'GET', '/api/me')).json.edits_channel).toBe(true)
+    expect((await viaMiddleware(mod, meRoute, 'GET', '/api/me')).json.powers).toEqual(['moderate_comments'])
+  })
+
+  it("tells helpers whose status is the admin's, so the page can leave Remove out", async () => {
+    await only('approve_users')
+    const mod = await person('Mod')
+    await setPowers(env.DB, mod.id, ['moderate_comments'])
+    const plain = await person('Plain')
+    const users = (await viaMiddleware(kid, listUsersRoute, 'GET', '/api/admin/users')).json.users as Json[]
+    const row = (who: User) => users.find((u) => u.id === who.id)!
+    expect(row(mod).status_admin_only).toBe(true)
+    expect(row(plain).status_admin_only).toBe(false)
+    expect(row(admin).status_admin_only).toBe(true)
+    expect(row(mod)).not.toHaveProperty('powers')
+  })
+})
+
+describe('email addresses', () => {
+  const EMAIL = /@example\.com/
+  const pendingPerson = async () => (await createUser(env.DB, `waiting${++seq}@example.com`, `Waiting${seq}`, 'viewer', 'pending'))!
+
+  it('are never sent to a moderate_comments helper, even in the PATCH answer', async () => {
+    await only('moderate_comments')
+    const waiting = await pendingPerson()
+    for (const who of [nan, waiting]) {
+      const r = await viaMiddleware(kid, patchUserRoute, 'PATCH', '/x', { id: String(who.id) }, { can_comment: true })
+      expect(r.status).toBe(200)
+      expect(r.json.user).not.toHaveProperty('email')
+      expect(JSON.stringify(r.json)).not.toMatch(EMAIL)
+    }
+  })
+
+  it("reach an approve_users helper for pending people only, never the admin's", async () => {
+    await only('approve_users')
+    const waiting = await pendingPerson()
+    const users = (await viaMiddleware(kid, listUsersRoute, 'GET', '/api/admin/users')).json.users as Json[]
+    for (const u of users) {
+      if (u.status === 'pending') expect(u.email, u.username).toMatch(EMAIL)
+      else expect(u, u.username).not.toHaveProperty('email')
+    }
+    expect(users.find((u) => u.id === waiting.id)!.email).toBe(waiting.email)
+    expect(users.find((u) => u.id === admin.id)).not.toHaveProperty('email')
+
+    // Approving them answers with the row as it is now: approved, so no email.
+    const r = await viaMiddleware(kid, patchUserRoute, 'PATCH', '/x', { id: String(waiting.id) }, { status: 'approved' })
+    expect(r.json.user.status).toBe('approved')
+    expect(JSON.stringify(r.json)).not.toMatch(EMAIL)
+  })
+
+  it('all reach the admin', async () => {
+    const users = (await viaMiddleware(admin, listUsersRoute, 'GET', '/api/admin/users')).json.users as Json[]
+    expect(users.every((u) => EMAIL.test(u.email))).toBe(true)
+    const r = await viaMiddleware(admin, patchUserRoute, 'PATCH', '/x', { id: String(nan.id) }, { can_comment: true })
+    expect(r.json.user.email).toBe(nan.email)
+  })
+})
+
+// A database that runs `hook` once, just before the first statement matching `when` executes: another
+// request landing at exactly that moment.
+function interrupted(db: D1Database, when: RegExp, hook: () => Promise<unknown>): D1Database {
+  let fired = false
+  const before = async (sql: string) => {
+    if (fired || !when.test(sql)) return
+    fired = true
+    await hook()
+  }
+  const wrap = (sql: string, stmt: D1PreparedStatement): D1PreparedStatement =>
+    new Proxy(stmt, {
+      get(s, p) {
+        if (p === 'bind') return (...args: unknown[]) => wrap(sql, s.bind(...args))
+        if (p === 'first' || p === 'all' || p === 'run' || p === 'raw') {
+          return async (...args: unknown[]) => {
+            await before(sql)
+            return (s[p] as (...a: unknown[]) => unknown).apply(s, args)
+          }
+        }
+        return Reflect.get(s, p)
+      },
+    })
+  return new Proxy(db, {
+    get(target, prop) {
+      if (prop !== 'prepare') return Reflect.get(target, prop)
+      return (sql: string) => wrap(sql, target.prepare(sql))
+    },
+  })
+}
+
+async function callWith(db: D1Database, handlers: unknown, as: User, method: string, path: string, params: Record<string, string>, body?: unknown) {
+  const user = (await getUserById(env.DB, as.id))!
+  const chain = [gate, ...(Array.isArray(handlers) ? handlers : [handlers])] as never
+  const request = new Request(BASE + path, { method, body: body === undefined ? undefined : JSON.stringify(body) })
+  return res(await runChain(chain, { env: { ...env, DB: db }, data: { email: user.email, user }, request, params }))
+}
+
+describe('races', () => {
+  it("a moderator's delete can't sweep away an admin reply posted while it runs", async () => {
+    await only('moderate_comments')
+    const v = await draft(cousin, 'published')
+    const top = await comment(nan, v.id, 'Racing thread')
+    let dadsReply = 0
+    // The admin replies just before the delete takes effect, after any check that comes before it.
+    const db = interrupted(env.DB, /^\s*DELETE/i, async () => {
+      dadsReply = (await comment(admin, v.id, 'Replying as it goes', top.id)).id
+    })
+    const r = await callWith(db, deleteCommentRoute, kid, 'DELETE', `/api/admin/comments/${top.id}`, { id: String(top.id) })
+    expect(r.status).toBe(403)
+    expect(r.json.error).toBe('cannot_act_on_admin')
+    const left = await env.DB.prepare('SELECT id FROM comments WHERE id IN (?, ?)').bind(top.id, dadsReply).all()
+    expect(left.results).toHaveLength(2)
+  })
+
+  it('a reply whose parent is deleted while the request runs is 404, not a server error', async () => {
+    const v = await draft(cousin, 'published')
+    const top = await comment(nan, v.id, 'About to go')
+    const db = interrupted(env.DB, /^\s*INSERT INTO comments/i, () => env.DB.prepare('DELETE FROM comments WHERE id = ?').bind(top.id).run())
+    const r = await callWith(db, postCommentRoute, cousin, 'POST', `/api/videos/${v.id}/comments`, { id: String(v.id) }, { body: 'Too late', parent_id: top.id })
+    expect(r.status).toBe(404)
+    expect(r.json.error).toBe('invalid_parent')
+    // Nothing stored: in particular no reply pointing at itself after taking the deleted parent's id.
+    const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM comments WHERE body = 'Too late' OR parent_id = id").first<{ n: number }>()
+    expect(left!.n).toBe(0)
   })
 })

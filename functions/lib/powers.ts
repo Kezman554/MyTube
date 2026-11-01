@@ -62,11 +62,31 @@ export function readPowerList(value: unknown): { powers: Power[] } | { message: 
   return { powers: POWERS.filter((p) => held.has(p)) }
 }
 
-// A user as the user list and user routes show them. Only the admin sees powers and the switch:
-// powers is what is ticked (all of them for the admin), admin_access whether the admin ones apply.
-// Anyone else (approve_users, moderate_comments) gets the row without them.
-export function userJsonFor(caller: Pick<User, 'role'>, user: User, stored: readonly Power[]) {
-  const { admin_access, ...row } = user
-  if (!isAdmin(caller)) return row
-  return { ...row, powers: isAdmin(user) ? [...POWERS] : [...stored], admin_access: admin_access === 1 }
+// Whose status (approve, remove, re-approve) only the admin changes: the admin, anyone holding a power
+// (ticked, whatever their admin access says), and the channel's owner (approved or not). A removal
+// keeps both, so the admin approving them again gives them back; a helper can't.
+export function statusIsAdminOnly(user: Pick<User, 'id' | 'role'>, stored: readonly Power[], channelOwnerId: number | null) {
+  return isAdmin(user) || stored.length > 0 || channelOwnerId === user.id
+}
+
+// Who is looking at a user row, and with which powers (as loaded for this request).
+export interface UserViewer {
+  user: Pick<User, 'role'>
+  powers: ReadonlySet<Power>
+}
+
+// A user as the user list and user routes show them.
+//   The admin sees everything, plus powers (what is ticked; all of them for the admin) and
+//   admin_access (whether the admin ones apply).
+//   Anyone else (approve_users, moderate_comments) never sees powers, the switch, or an email address,
+//   except that approve_users sees a pending user's email, to recognise who is asking to join. They get
+//   status_admin_only instead: whether this person's status is the admin's to change (statusIsAdminOnly),
+//   so the page shows Approve or Remove only where it will work.
+export function userJsonFor(viewer: UserViewer, user: User, stored: readonly Power[], channelOwnerId: number | null) {
+  const { admin_access, email, ...row } = user
+  if (isAdmin(viewer.user)) {
+    return { ...row, email, powers: isAdmin(user) ? [...POWERS] : [...stored], admin_access: admin_access === 1 }
+  }
+  const showEmail = viewer.powers.has('approve_users') && user.status === 'pending'
+  return { ...row, ...(showEmail ? { email } : {}), status_admin_only: statusIsAdminOnly(user, stored, channelOwnerId) }
 }

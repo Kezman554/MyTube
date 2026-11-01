@@ -83,6 +83,11 @@ export async function run(db: D1Database, sql: string, ...params: Param[]): Prom
 
 // Users
 
+// Who owns the channel (migrations/0007_channel.sql), whatever their status, or null.
+export async function getChannelOwnerId(db: D1Database) {
+  return (await first<{ owner_user_id: number | null }>(db, 'SELECT owner_user_id FROM channel WHERE id = 1'))?.owner_user_id ?? null
+}
+
 export function getUserByEmail(db: D1Database, email: string) {
   return first<User>(db, 'SELECT * FROM users WHERE email = ?', email)
 }

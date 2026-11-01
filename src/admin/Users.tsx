@@ -82,7 +82,7 @@ function Who({ user }: { user: AdminUser }) {
     <>
       <h3 className="admin-item-name">{user.username}</h3>
       <p className="muted">
-        {user.email} · registered {new Date(user.created_at).toLocaleDateString()}
+        {user.email ? `${user.email} · registered` : 'Registered'} {new Date(user.created_at).toLocaleDateString()}
       </p>
     </>
   )
@@ -105,7 +105,9 @@ function PendingRow({ user, onChanged }: { user: AdminUser; onChanged: () => voi
     <li className="admin-item">
       <Who user={user} />
       <ErrorLine error={error} />
-      {confirming ? (
+      {user.status_admin_only ? (
+        <p className="muted">Only the admin can approve {user.username}.</p>
+      ) : confirming ? (
         <div className="admin-actions">
           <p className="admin-confirm">Reject {user.username}? They will see that their access was removed.</p>
           <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => void change({ status: 'removed' })}>
@@ -176,9 +178,13 @@ function ApprovedRow({ user, owner, onChanged }: { user: AdminUser; owner: Owner
                 Mute
               </button>
             ))}
-          <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => setConfirm('remove')}>
-            Remove
-          </button>
+          {user.status_admin_only ? (
+            <p className="muted">Only the admin can remove {user.username}.</p>
+          ) : (
+            <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => setConfirm('remove')}>
+              Remove
+            </button>
+          )}
           {muted && <span className="chip">Muted</span>}
         </div>
       ) : (

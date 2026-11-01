@@ -1,6 +1,6 @@
-import { getUserById } from '../../../../lib/db'
+import { getChannelOwnerId, getUserById } from '../../../../lib/db'
 import type { ApiFunction } from '../../../../lib/env'
-import { requireAdmin } from '../../../../lib/guards'
+import { powersOf, requireAdmin } from '../../../../lib/guards'
 import { isAdmin, readPowerList, setPowers, userJsonFor } from '../../../../lib/powers'
 
 // PUT /api/admin/users/:id/powers { powers: [...] } -> { user } with powers. Admin only: only the admin
@@ -8,7 +8,8 @@ import { isAdmin, readPowerList, setPowers, userJsonFor } from '../../../../lib/
 // Refused (403) for the admin's own account: the admin holds every power without rows, and no power
 // makes anyone an admin. Takes effect on the user's next request. While their admin access is off, the
 // admin powers stay ticked here but don't apply.
-const put: ApiFunction = async ({ request, env, data, params }) => {
+const put: ApiFunction = async (context) => {
+  const { request, env, data, params } = context
   const id = Number(params.id)
   if (!Number.isSafeInteger(id) || id <= 0) return Response.json({ error: 'not_found' }, { status: 404 })
 
@@ -24,7 +25,8 @@ const put: ApiFunction = async ({ request, env, data, params }) => {
   }
 
   await setPowers(env.DB, id, parsed.powers)
-  return Response.json({ user: userJsonFor(data.user!, user, parsed.powers) })
+  const viewer = { user: data.user!, powers: await powersOf(context) }
+  return Response.json({ user: userJsonFor(viewer, user, parsed.powers, await getChannelOwnerId(env.DB)) })
 }
 
 export const onRequestPut = [requireAdmin, put]

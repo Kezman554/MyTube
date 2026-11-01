@@ -1,4 +1,4 @@
-import { first, run, type User } from './db'
+import { first, getChannelOwnerId, run, type User } from './db'
 import type { ApiFunction } from './env'
 import { requireApproved } from './guards'
 import { imageVersion } from './images'
@@ -48,8 +48,7 @@ export function channelJson(row: ChannelRow, caller: User) {
 // Whether this user may change the bio and banner: the admin, or the approved owner.
 export async function canEditChannel(db: D1Database, user: User) {
   if (isAdmin(user)) return true
-  const row = await first<{ owner_user_id: number | null }>(db, 'SELECT owner_user_id FROM channel WHERE id = 1')
-  return row?.owner_user_id === user.id
+  return (await getChannelOwnerId(db)) === user.id
 }
 
 // The owner (or the admin), approved. Everyone else gets 403 before the handler runs.

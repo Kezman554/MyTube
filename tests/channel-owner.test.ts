@@ -180,6 +180,15 @@ describe('the banner', () => {
     expect((await putBanner(PNG, kid, { length: null })).status).toBe(411)
   })
 
+  it('refuses a Content-Length that is not a whole number of bytes, before reading the body', async () => {
+    for (const length of ['abc', '-1', '1.5', '1e3', '0x10', '']) {
+      const request = new Request(`${BASE}/api/channel/banner`, { method: 'PUT', body: PNG, headers: { 'Content-Length': length } })
+      const r = await json(await send(putBannerRoute, kid, request))
+      expect(r.status, JSON.stringify(length)).toBe(400)
+      expect(r.json.error).toBe('invalid_length')
+    }
+  })
+
   it('stores under a random key, deletes the previous banner, and serves a versioned URL cached for a year', async () => {
     const first = (await putBanner(PNG)).json.channel.banner_url as string
     const keysAfterFirst = await objectKeys()

@@ -100,17 +100,24 @@ export async function findReplyTarget(db: D1Database, videoId: number, id: numbe
   return { parent_id: target.parent_id, reply_to_user_id: target.user_id }
 }
 
+// Adds a comment, or a reply under `reply`. Null when the parent has gone since findReplyTarget: the
+// insert checks it still exists as part of the same statement. The foreign key alone isn't enough,
+// because ids are reused: with the newest comment deleted, the reply would take its id and point at itself.
 export async function addComment(db: D1Database, videoId: number, userId: number, body: string, reply: ReplyTarget | null = null) {
   const inserted = await first<{ id: number }>(
     db,
-    'INSERT INTO comments (video_id, user_id, body, parent_id, reply_to_user_id) VALUES (?, ?, ?, ?, ?) RETURNING id',
+    `INSERT INTO comments (video_id, user_id, body, parent_id, reply_to_user_id)
+     SELECT ?1, ?2, ?3, ?4, ?5
+     WHERE ?4 IS NULL OR EXISTS (SELECT 1 FROM comments WHERE id = ?4 AND video_id = ?1 AND parent_id IS NULL)
+     RETURNING id`,
     videoId,
     userId,
     body,
     reply?.parent_id ?? null,
     reply?.reply_to_user_id ?? null,
   )
-  return (await first<CommentRow>(db, `${SELECT} WHERE comments.id = ?`, inserted!.id))!
+  if (!inserted) return null
+  return (await first<CommentRow>(db, `${SELECT} WHERE comments.id = ?`, inserted.id))!
 }
 
 // Trims the ends and normalises line breaks; refuses empty or over-long comments.
@@ -130,25 +137,25 @@ export function readParentId(value: unknown): { id: number | null } | { message:
   return { message: "That comment can't be replied to." }
 }
 
-// Whether deleting comment `id` would delete anything the admin wrote: the comment itself, or (for a
-// top-level comment) one of the replies that go with it. Null when there is no such comment.
-export async function deletionTouchesAdmin(db: D1Database, id: number) {
-  const row = await first<{ found: number; admin: number }>(
-    db,
-    `SELECT EXISTS (SELECT 1 FROM comments WHERE id = ?) AS found,
-       EXISTS (SELECT 1 FROM comments JOIN users ON users.id = comments.user_id
-               WHERE (comments.id = ? OR comments.parent_id = ?) AND users.role = 'admin') AS admin`,
-    id,
-    id,
-    id,
-  )
-  if (!row?.found) return null
-  return row.admin === 1
-}
-
-// Deleting a top-level comment deletes its replies too (ON DELETE CASCADE on parent_id).
-export async function deleteComment(db: D1Database, id: number) {
-  return (await first(db, 'DELETE FROM comments WHERE id = ? RETURNING id', id)) !== null
+// Deletes comment `id`; deleting a top-level comment deletes its replies too (ON DELETE CASCADE on
+// parent_id). With spareAdmin (anyone but the admin), nothing is deleted if the comment, or any reply
+// that would go with it, is the admin's. The check is part of the DELETE itself, so an admin reply
+// arriving while the request runs is either seen by it or posted after the thread is gone, never
+// swept away with it.
+//   'deleted'  it's gone
+//   'admin'    refused: the admin's comment, or a thread with an admin reply
+//   'gone'     there was no such comment
+export async function deleteComment(db: D1Database, id: number, spareAdmin: boolean): Promise<'deleted' | 'admin' | 'gone'> {
+  const sql = spareAdmin
+    ? `DELETE FROM comments WHERE id = ?1 AND NOT EXISTS (
+         SELECT 1 FROM comments AS c JOIN users ON users.id = c.user_id
+         WHERE (c.id = ?1 OR c.parent_id = ?1) AND users.role = 'admin'
+       ) RETURNING id`
+    : 'DELETE FROM comments WHERE id = ?1 RETURNING id'
+  if ((await first(db, sql, id)) !== null) return 'deleted'
+  if (!spareAdmin) return 'gone'
+  // Not deleted: either it wasn't there, or the admin's part in it kept it.
+  return (await first(db, 'SELECT 1 AS found FROM comments WHERE id = ?', id)) !== null ? 'admin' : 'gone'
 }
 
 // The admin's moderation list: the newest comments on every video, with the video they are on,

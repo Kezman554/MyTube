@@ -8,7 +8,8 @@ export type UserStatus = 'pending' | 'approved' | 'removed'
 
 export interface AdminUser {
   id: number
-  email: string
+  // The admin sees everyone's; approve_users helpers only pending users'.
+  email?: string
   username: string
   role: Role
   status: UserStatus
@@ -18,6 +19,9 @@ export interface AdminUser {
   // admin powers apply (off pauses them without unticking).
   powers?: Power[]
   admin_access?: boolean
+  // Only in a helper's view: whether approving or removing this person is the admin's alone (they hold
+  // powers or own the channel).
+  status_admin_only?: boolean
 }
 
 // status needs approve_users, can_comment (mute) moderate_comments.

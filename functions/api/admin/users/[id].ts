@@ -1,7 +1,7 @@
-import { getUserById, updateUser, type UserChanges } from '../../../lib/db'
+import { getChannelOwnerId, getUserById, updateUser, type UserChanges } from '../../../lib/db'
 import type { ApiFunction } from '../../../lib/env'
 import { actsOnAdmin, cannotActOnAdmin, powersOf, requirePower } from '../../../lib/guards'
-import { isAdmin, loadStoredPowers, userJsonFor } from '../../../lib/powers'
+import { isAdmin, loadStoredPowers, statusIsAdminOnly, userJsonFor } from '../../../lib/powers'
 
 function badRequest(error: string, message: string) {
   return Response.json({ error, message }, { status: 400 })
@@ -14,7 +14,9 @@ const forbidden = () => Response.json({ error: 'forbidden' }, { status: 403 })
 //   { can_comment: boolean }             moderate_comments: mute or unmute
 // The route admits either power; each field then needs its own. Nobody's role changes here (only the
 // ADMIN_EMAIL account is admin; powers are PUT /api/admin/users/:id/powers). Nothing done under a
-// power may act on the admin (403), and nobody can remove themselves. -> { user } with powers
+// power may act on the admin (403), and nobody can remove themselves. Changing the status of anyone
+// holding a power, or of the channel's owner, is the admin's alone (403 admin_only): a removal keeps
+// their powers and ownership, so re-approving them would hand those back. -> { user } (see userJsonFor)
 const patch: ApiFunction = async (context) => {
   const { request, env, data, params } = context
   const caller = data.user!
@@ -59,8 +61,16 @@ const patch: ApiFunction = async (context) => {
   if (!target) return Response.json({ error: 'not_found' }, { status: 404 })
   if (actsOnAdmin(caller, isAdmin(target))) return cannotActOnAdmin("That's the admin's account, so it can't be changed here.")
 
+  const [stored, ownerId] = await Promise.all([loadStoredPowers(env.DB, id), getChannelOwnerId(env.DB)])
+  if (changes.status !== undefined && !isAdmin(caller) && statusIsAdminOnly(target, stored, ownerId)) {
+    return Response.json(
+      { error: 'admin_only', message: `Only the admin can approve or remove ${target.username}.` },
+      { status: 403 },
+    )
+  }
+
   const user = (await updateUser(env.DB, id, changes))!
-  return Response.json({ user: userJsonFor(caller, user, await loadStoredPowers(env.DB, user.id)) })
+  return Response.json({ user: userJsonFor({ user: caller, powers }, user, stored, ownerId) })
 }
 
 export const onRequestPatch = [requirePower('approve_users', 'moderate_comments'), patch]

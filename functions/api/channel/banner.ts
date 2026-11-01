@@ -22,6 +22,8 @@ const get: ApiFunction = async ({ request, env }) => {
 const put: ApiFunction = async ({ request, env, data }) => {
   const declared = request.headers.get('Content-Length')
   if (declared === null) return error(411, 'length_required')
+  // Digits only: anything else (NaN, negative, fractional) would slip past the size check below.
+  if (!/^\d+$/.test(declared)) return error(400, 'invalid_length', 'Content-Length must be a whole number of bytes.')
   if (Number(declared) > BANNER_MAX_BYTES) return error(413, 'banner_too_large', 'Banners can be up to 5 MB.')
 
   const bytes = new Uint8Array(await request.arrayBuffer())
