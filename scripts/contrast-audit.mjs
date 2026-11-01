@@ -36,7 +36,7 @@ const PAIRINGS = [
   ['ground', 'accent-fill', 'non-text', 'logo play arrow on its block'],
   ['accent-fill', 'ground', 'non-text', 'logo block in the top bar; upload progress fill in its bar'],
   ['accent-fill', 'ground-texture', 'non-text', 'primary button fill against the page'],
-  ['accent-fill', 'surface', 'non-text', 'primary button fill in panels; checked checkbox'],
+  ['accent-fill', 'surface', 'non-text', 'primary button fill in panels; checked checkbox; admin access switch on (track and thumb)'],
   ['attention', 'avatar-face', 'non-text', 'avatar eyes'],
   ['link', 'ground-texture', 'non-text', 'focus outline on the page; outline on a comment linked from the admin'],
   ['link', 'ground', 'non-text', 'focus outline in the top bar'],
@@ -45,7 +45,7 @@ const PAIRINGS = [
   // Borders on the surface they sit on
   ['border', 'ground-texture', 'non-text', 'inputs, chips, panels, cards and avatar frames on the page'],
   ['border', 'ground', 'non-text', 'account button in the top bar'],
-  ['border', 'surface', 'non-text', 'inputs, quiet buttons and chips inside panels and the menu'],
+  ['border', 'surface', 'non-text', 'inputs, quiet buttons and chips inside panels and the menu; admin access switch off'],
   ['accent-fill', 'surface', 'non-text', 'account button border while its menu is open (inside)'],
   ['danger-outline', 'ground-texture', 'non-text', 'danger buttons and error alerts on the page'],
   ['danger-outline', 'surface', 'non-text', 'danger buttons and error alerts in panels'],

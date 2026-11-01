@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router'
-import { deleteComment } from '../admin/api'
-import { can, useMe } from '../auth/MeContext'
+import { deleteComment, updateUser } from '../admin/api'
+import { useMe } from '../auth/MeContext'
 import { commentAge } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
 import { COMMENT_MAX, listComments, postComment, type Comment, type Reply, type Thread } from '../videos/api'
@@ -25,8 +25,7 @@ interface ReplyTarget {
 // Comments under a video: the box to add one (or a short message for muted users), then the
 // comments newest first with who wrote them and when, each with its replies oldest first.
 export function Comments({ videoId, published }: { videoId: number; published: boolean }) {
-  const me = useMe()
-  const { user } = me
+  const { user } = useMe()
   const [comments, reload] = useLoad(`comments:${videoId}`, () => listComments(videoId))
   // The server is the judge: if it says muted, the boxes go even if this page was loaded before the mute.
   const [mutedNow, setMutedNow] = useState(false)
@@ -69,7 +68,6 @@ export function Comments({ videoId, published }: { videoId: number; published: b
               key={thread.id}
               videoId={videoId}
               thread={thread}
-              canDelete={can(me, 'moderate_comments')}
               canReply={canReply}
               linkedId={linkedId}
               replyTarget={replyTarget?.threadId === thread.id ? replyTarget : null}
@@ -87,7 +85,6 @@ export function Comments({ videoId, published }: { videoId: number; published: b
 function ThreadItem({
   videoId,
   thread,
-  canDelete,
   canReply,
   linkedId,
   replyTarget,
@@ -97,7 +94,6 @@ function ThreadItem({
 }: {
   videoId: number
   thread: Thread
-  canDelete: boolean
   canReply: boolean
   linkedId: number | null
   replyTarget: ReplyTarget | null
@@ -119,7 +115,6 @@ function ThreadItem({
       <CommentItem
         comment={thread}
         replyCount={replies.length}
-        canDelete={canDelete}
         canReply={canReply}
         linked={thread.id === linkedId}
         onReply={() => reply(thread)}
@@ -144,7 +139,6 @@ function ThreadItem({
                 <CommentItem
                   key={r.id}
                   comment={r}
-                  canDelete={canDelete}
                   canReply={canReply}
                   linked={r.id === linkedId}
                   onReply={() => reply(r)}
@@ -207,7 +201,11 @@ function CommentBox({
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (!text.trim() || tooLong) return
+    if (!text.trim() || tooLong) {
+      setError(tooLong ? `Comments can be up to ${COMMENT_MAX} characters.` : 'Write a comment first.')
+      input.current?.focus()
+      return
+    }
     setPosting(true)
     const result = await postComment(videoId, text, replyTo?.commentId)
     setPosting(false)
@@ -235,7 +233,10 @@ function CommentBox({
         rows={2}
         placeholder={replyTo ? `Reply to @${replyTo.username}…` : 'Add a comment…'}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value)
+          if (error) setError(null)
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Escape' && onCancel) onCancel()
         }}
@@ -256,7 +257,7 @@ function CommentBox({
               Cancel
             </button>
           )}
-          <button type="submit" className="btn btn-small" disabled={posting || !text.trim() || tooLong}>
+          <button type="submit" className="btn btn-small" disabled={posting}>
             {posting ? 'Posting…' : replyTo ? 'Reply' : 'Post'}
           </button>
         </div>
@@ -270,12 +271,13 @@ function CommentBox({
   )
 }
 
-// One comment or reply. Reply opens the box under its thread; the admin also gets Delete, which asks
-// first (inline, as in the admin panel) and says how many replies go with a top-level comment.
+// One comment or reply. Reply opens the box under its thread. With moderate_comments the server marks
+// which of Delete and Mute will work (never on the admin's comments, or Delete on a thread holding the
+// admin's reply), and only those show. Delete asks first and says how many replies go with it; Mute is
+// one click, since Unmute sits in the same place.
 function CommentItem({
   comment,
   replyCount = 0,
-  canDelete,
   canReply,
   linked,
   onReply,
@@ -283,25 +285,28 @@ function CommentItem({
 }: {
   comment: Comment | Reply
   replyCount?: number
-  canDelete: boolean
   canReply: boolean
   linked: boolean
   onReply: () => void
   onDeleted: () => void
 }) {
+  const canDelete = comment.moderation?.delete === true
+  const canMute = comment.moderation?.mute === true
+  const muted = comment.moderation?.muted === true
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isReply = 'parent_id' in comment
   const replyTo = isReply ? comment.reply_to : null
 
-  async function remove() {
+  async function act(action: () => Promise<{ ok: boolean; message?: string }>) {
     setBusy(true)
     setError(null)
-    const result = await deleteComment(comment.id)
+    const result = await action()
     setBusy(false)
+    // Muting changes every comment by the same person, so the whole list is reloaded either way.
     if (result.ok) onDeleted()
-    else setError(result.message)
+    else setError(result.message ?? null)
   }
 
   const question = isReply
@@ -330,7 +335,7 @@ function CommentItem({
         {confirming ? (
           <div className="comment-actions">
             <span className="comment-confirm">{question}</span>
-            <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => void remove()}>
+            <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => void act(() => deleteComment(comment.id))}>
               Yes, delete
             </button>
             <button type="button" className="btn btn-quiet btn-small" onClick={() => setConfirming(false)}>
@@ -338,7 +343,7 @@ function CommentItem({
             </button>
           </div>
         ) : (
-          (canReply || canDelete) && (
+          (canReply || canDelete || canMute) && (
             <div className="comment-actions">
               {canReply && (
                 <button type="button" className="btn-link comment-action" onClick={onReply} aria-label={`Reply to ${comment.user.username}`}>
@@ -348,6 +353,16 @@ function CommentItem({
               {canDelete && (
                 <button type="button" className="btn-link comment-action comment-delete" onClick={() => setConfirming(true)}>
                   Delete
+                </button>
+              )}
+              {canMute && (
+                <button
+                  type="button"
+                  className="btn-link comment-action"
+                  disabled={busy}
+                  onClick={() => void act(() => updateUser(comment.user.id, { can_comment: muted }))}
+                >
+                  {muted ? `Unmute ${comment.user.username}` : `Mute ${comment.user.username}`}
                 </button>
               )}
             </div>

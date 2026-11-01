@@ -60,6 +60,7 @@ const EXPECTED: Record<string, Need> = {
 
   'DELETE /api/videos/[id]': 'admin',
   'PUT /api/admin/users/[id]/powers': 'admin',
+  'PUT /api/admin/users/[id]/admin-access': 'admin',
   'GET /api/admin/orphans': 'admin',
   'DELETE /api/admin/orphans': 'admin',
 }

@@ -5,6 +5,7 @@ import { onRequestDelete as deleteCommentRoute } from '../functions/api/admin/co
 import { onRequestGet as recentCommentsRoute } from '../functions/api/admin/comments/index'
 import { onRequestPost as createPlaylistRoute } from '../functions/api/admin/playlists/index'
 import { onRequestPatch as patchUserRoute } from '../functions/api/admin/users/[id]'
+import { onRequestPut as putAdminAccessRoute } from '../functions/api/admin/users/[id]/admin-access'
 import { onRequestPut as putPowersRoute } from '../functions/api/admin/users/[id]/powers'
 import { onRequestGet as listUsersRoute } from '../functions/api/admin/users/index'
 import { onRequestPost as reviewPublishRoute } from '../functions/api/admin/videos/[id]/publish'
@@ -13,12 +14,12 @@ import { onRequestGet as queueRoute } from '../functions/api/admin/videos/index'
 import { onRequestGet as meRoute } from '../functions/api/me'
 import { onRequestPost as startUploadRoute } from '../functions/api/uploads/start'
 import { onRequestGet as getVideoRoute } from '../functions/api/videos/[id]'
-import { onRequestPost as postCommentRoute } from '../functions/api/videos/[id]/comments'
+import { onRequestGet as listCommentsRoute, onRequestPost as postCommentRoute } from '../functions/api/videos/[id]/comments'
 import { onRequestPost as publishOwnRoute } from '../functions/api/videos/[id]/publish'
 import { onRequestPost as createVideoRoute } from '../functions/api/videos/index'
 import { createUpload, createUser, createVideo, getUserById, getVideo, markUploadComplete, run, type User } from '../functions/lib/db'
 import type { Env } from '../functions/lib/env'
-import { POWERS, type Power } from '../functions/lib/powers'
+import { ADMIN_POWERS, POWERS, type Power } from '../functions/lib/powers'
 import { newVideoKey } from '../functions/lib/storage'
 import { applyMigrations, createTestDb, runChain } from './helpers'
 
@@ -339,5 +340,144 @@ describe('nothing done under a power acts on the admin', () => {
     // The admin sees and rejects their own.
     expect((await call(queueRoute, admin, 'GET', '/api/admin/videos')).json.videos.map((v: Json) => v.id)).toContain(dads.id)
     expect((await call(rejectRoute, admin, 'POST', '/x', { id })).status).toBe(200)
+  })
+})
+
+describe('the admin access switch', () => {
+  const setAccess = (who: User, on: unknown, as: User = admin) =>
+    call(putAdminAccessRoute, as, 'PUT', `/api/admin/users/${who.id}/admin-access`, { id: String(who.id) }, { admin_access: on })
+
+  // Requests as the kid through the real middleware on a local host, as wrangler pages dev runs them.
+  const asKid = () => ({ ...env, DEV_EMAIL: kid.email })
+  const throughMiddleware = async (handlers: unknown[], method: string, path: string, body?: unknown) => {
+    const init: RequestInit = { method, body: body === undefined ? undefined : JSON.stringify(body) }
+    return runChain([...middleware, ...handlers] as never, { env: asKid(), data: {}, request: new Request(`http://localhost:8788${path}`, init) })
+  }
+  const mePowers = async () => ((await (await throughMiddleware([meRoute], 'GET', '/api/me')).json()) as Json).powers
+  const storedTicks = async () =>
+    (await env.DB.prepare('SELECT power FROM user_powers WHERE user_id = ? ORDER BY power').bind(kid.id).all<{ power: string }>()).results.map((r) => r.power)
+
+  it('suspends the four admin powers everywhere while off, keeps upload, and restores the ticks when on', async () => {
+    await only(...POWERS)
+    await setAccess(kid, true)
+    const ticks = await storedTicks()
+    expect(await mePowers()).toEqual([...POWERS])
+
+    const off = await setAccess(kid, false)
+    expect(off.status).toBe(200)
+    expect(off.json.user).toMatchObject({ id: kid.id, admin_access: false, powers: [...POWERS] })
+
+    // Next request: only upload and publish_own apply, in /api/me and in every guard.
+    expect(await mePowers()).toEqual(['upload', 'publish_own'])
+    expect((await throughMiddleware(createPlaylistRoute, 'POST', '/api/admin/playlists', { title: `Off ${++seq}` })).status).toBe(403)
+    expect((await throughMiddleware(queueRoute, 'GET', '/api/admin/videos')).status).toBe(403)
+    expect((await throughMiddleware(recentCommentsRoute, 'GET', '/api/admin/comments')).status).toBe(403)
+    expect((await throughMiddleware(listUsersRoute, 'GET', '/api/admin/users')).status).toBe(403)
+    expect((await throughMiddleware(startUploadRoute, 'POST', '/api/uploads/start', { filename: 'clip.mp4', size: 1000 })).status).toBe(201)
+    // Without the middleware too: the guards load powers through the same function.
+    expect((await call(createPlaylistRoute, kid, 'POST', '/api/admin/playlists', {}, { title: `Off ${++seq}` })).status).toBe(403)
+    // Nothing was untucked.
+    expect(await storedTicks()).toEqual(ticks)
+
+    expect((await setAccess(kid, true)).json.user.admin_access).toBe(true)
+    expect(await mePowers()).toEqual([...POWERS])
+    expect((await throughMiddleware(createPlaylistRoute, 'POST', '/api/admin/playlists', { title: `On ${++seq}` })).status).toBe(201)
+  })
+
+  it('restores exactly what was ticked, not every admin power', async () => {
+    await only('upload', 'moderate_comments')
+    await setAccess(kid, false)
+    expect(await mePowers()).toEqual(['upload'])
+    // The admin can still change ticks while it's off; they stay paused.
+    await grant(kid, ['upload', 'moderate_comments', 'review_drafts'])
+    expect(await mePowers()).toEqual(['upload'])
+    await setAccess(kid, true)
+    expect(await mePowers()).toEqual(['upload', 'moderate_comments', 'review_drafts'])
+  })
+
+  it('shows the admin the ticks and the switch, and nobody else', async () => {
+    await only('approve_users', 'manage_playlists')
+    await setAccess(cousin, false)
+    const asAdmin = (await call(listUsersRoute, admin, 'GET', '/api/admin/users')).json.users.find((u: Json) => u.id === cousin.id)
+    expect(asAdmin).toMatchObject({ admin_access: false })
+    expect(asAdmin.powers).toEqual(expect.any(Array))
+    const asHelper = (await call(listUsersRoute, kid, 'GET', '/api/admin/users')).json.users.find((u: Json) => u.id === cousin.id)
+    expect(asHelper).not.toHaveProperty('powers')
+    expect(asHelper).not.toHaveProperty('admin_access')
+    await setAccess(cousin, true)
+  })
+
+  it('is admin only, and refused for the admin\'s own account', async () => {
+    await only(...POWERS)
+    expect((await setAccess(cousin, false, kid)).status).toBe(403)
+    expect((await setAccess(kid, false, kid)).status).toBe(403)
+    expect((await getUserById(env.DB, cousin.id))!.admin_access).toBe(1)
+
+    const self = await setAccess(admin, false)
+    expect(self.status).toBe(403)
+    expect(self.json.error).toBe('cannot_change_admin')
+    expect((await getUserById(env.DB, admin.id))!.admin_access).toBe(1)
+
+    for (const bad of ['off', 0, null, undefined]) expect((await setAccess(kid, bad)).status, String(bad)).toBe(400)
+    expect((await call(putAdminAccessRoute, admin, 'PUT', '/x', { id: '99999' }, { admin_access: false })).status).toBe(404)
+  })
+
+  it('lists the four powers it suspends', () => {
+    expect([...ADMIN_POWERS].sort()).toEqual(['approve_users', 'manage_playlists', 'moderate_comments', 'review_drafts'])
+  })
+})
+
+describe('moderation flags on the watch page', () => {
+  it('tells a moderator which comments they can delete and mute, and tells nobody else', async () => {
+    await only('moderate_comments')
+    const v = await draft(cousin, 'published')
+    const dads = await comment(admin, v.id, 'Proud of you')
+    const top = await comment(nan, v.id, 'Lovely')
+    const dadsReply = await comment(admin, v.id, 'Thanks Nan', top.id)
+    const nansReply = await comment(nan, v.id, 'You too', top.id)
+    const plain = await comment(cousin, v.id, 'Plain')
+    const mine = await comment(kid, v.id, 'Mine')
+    const list = (as: User) => call(listCommentsRoute, as, 'GET', '/x', { id: String(v.id) })
+    const flags = (json: Json) => {
+      const out: Record<number, Json> = {}
+      for (const c of json.comments) {
+        out[c.id] = c.moderation
+        for (const r of c.replies) out[r.id] = r.moderation
+      }
+      return out
+    }
+
+    const asKid = flags((await list(kid)).json)
+    expect(asKid[dads.id]).toEqual({ delete: false, mute: false, muted: false })
+    expect(asKid[top.id]).toMatchObject({ delete: false, mute: true }) // carries the admin's reply
+    expect(asKid[dadsReply.id]).toMatchObject({ delete: false, mute: false })
+    expect(asKid[nansReply.id]).toMatchObject({ delete: true, mute: true })
+    expect(asKid[plain.id]).toMatchObject({ delete: true, mute: true })
+    expect(asKid[mine.id]).toMatchObject({ delete: true, mute: false })
+
+    // The admin can delete everything, and still can't mute themselves.
+    const asAdmin = flags((await list(admin)).json)
+    expect(Object.values(asAdmin).every((m) => m.delete)).toBe(true)
+    expect(asAdmin[dads.id].mute).toBe(false)
+
+    // Without the power, or with admin access off, there are no flags at all.
+    expect(flags((await list(nan)).json)[plain.id]).toBeUndefined()
+    await call(putAdminAccessRoute, admin, 'PUT', '/x', { id: String(kid.id) }, { admin_access: false })
+    expect(flags((await list(kid)).json)[plain.id]).toBeUndefined()
+    await call(putAdminAccessRoute, admin, 'PUT', '/x', { id: String(kid.id) }, { admin_access: true })
+  })
+
+  it("leaves the admin's own comments out of a moderator's Comments tab", async () => {
+    await only('moderate_comments')
+    const v = await draft(cousin, 'published')
+    const dads = await comment(admin, v.id, 'Admin only row')
+    const top = await comment(nan, v.id, 'Has an admin reply')
+    await comment(admin, v.id, 'Reply from Dad', top.id)
+    const ids = (json: Json) => json.comments.map((c: Json) => c.id)
+
+    const asKid = (await call(recentCommentsRoute, kid, 'GET', '/api/admin/comments')).json
+    expect(ids(asKid)).not.toContain(dads.id)
+    expect(asKid.comments.find((c: Json) => c.id === top.id).moderation).toMatchObject({ delete: false, mute: true })
+    expect(ids((await call(recentCommentsRoute, admin, 'GET', '/api/admin/comments')).json)).toContain(dads.id)
   })
 })

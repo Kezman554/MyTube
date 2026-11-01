@@ -2,6 +2,9 @@
 export const POWERS = ['upload', 'publish_own', 'manage_playlists', 'moderate_comments', 'review_drafts', 'approve_users'] as const
 export type Power = (typeof POWERS)[number]
 
+// What the admin access switch pauses. upload and publish_own are not affected.
+export const ADMIN_POWERS: readonly Power[] = ['manage_playlists', 'moderate_comments', 'review_drafts', 'approve_users']
+
 // What the admin sees beside each checkbox when handing powers out.
 export const POWER_LABELS: Record<Power, { name: string; detail: string }> = {
   upload: { name: 'Upload', detail: 'Upload videos. They arrive as drafts.' },

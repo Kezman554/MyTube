@@ -14,8 +14,10 @@ export interface AdminUser {
   status: UserStatus
   can_comment: 0 | 1
   created_at: string
-  // Every power for the admin.
-  powers: Power[]
+  // Only in the admin's view: what is ticked (every power on the admin's own row), and whether the
+  // admin powers apply (off pauses them without unticking).
+  powers?: Power[]
+  admin_access?: boolean
 }
 
 // status needs approve_users, can_comment (mute) moderate_comments.
@@ -28,6 +30,10 @@ export const listUsers = () => request('/api/admin/users', {}, (b: { users: Admi
 
 export const updateUser = (id: number, changes: UserChanges) =>
   request(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }, (b: { user: AdminUser }) => b.user)
+
+// Admin only: on or off for this person's admin powers. Their ticks are kept either way.
+export const setAdminAccess = (id: number, on: boolean) =>
+  request(`/api/admin/users/${id}/admin-access`, { method: 'PUT', body: JSON.stringify({ admin_access: on }) }, (b: { user: AdminUser }) => b.user)
 
 // Admin only: the user's full list of powers afterwards.
 export const setPowers = (id: number, powers: Power[]) =>
@@ -58,6 +64,14 @@ export interface RecentComment {
   reply_to?: { id: number; username: string } | null
   // On a top-level comment, how many replies a Delete takes with it.
   reply_count: number
+  moderation: Moderation
+}
+
+// What the caller can do to a comment (moderate_comments): only these controls are shown.
+export interface Moderation {
+  delete: boolean
+  mute: boolean
+  muted: boolean
 }
 
 // The newest 100 comments on every video, replies included.

@@ -93,6 +93,71 @@ h3.admin-item-name {
   padding: 0 4px;
 }
 
+/* The admin access switch: a square track with a block thumb, plus On/Off in words (never colour alone). */
+.powers-access {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: var(--border-width) solid var(--divider);
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  justify-self: start;
+  min-height: 36px;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.switch:focus-visible {
+  outline: var(--border-width) solid var(--link);
+  outline-offset: var(--border-width);
+}
+
+.switch-track {
+  display: flex;
+  width: 44px;
+  height: 24px;
+  padding: 2px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+}
+
+.switch-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--border);
+}
+
+.switch[aria-checked='true'] .switch-track {
+  justify-content: flex-end;
+  border-color: var(--accent-fill);
+}
+
+.switch[aria-checked='true'] .switch-thumb {
+  background: var(--accent-fill);
+}
+
+.switch-label {
+  font-weight: 600;
+}
+
+.switch-state {
+  font-family: var(--font-pixel);
+  font-size: 0.625rem;
+}
+
+.powers-paused {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .powers-hint {
   margin: 0;
   font-size: 0.8125rem;

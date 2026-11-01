@@ -130,7 +130,7 @@ export function VideoDetailsForm({
           </p>
         )}
         <p className="muted">
-          {canPublish ? 'Drafts stay hidden until you publish them.' : 'The admin approves it before anyone else can see it.'}
+          {canPublish ? 'Drafts stay hidden until you publish them.' : 'It is reviewed before anyone else can see it.'}
         </p>
         <div className="video-form-actions">
           {onCancel && (
@@ -138,9 +138,16 @@ export function VideoDetailsForm({
               Cancel
             </button>
           )}
-          <button type="submit" className="btn" disabled={!ready || saving}>
-            {saveLabel}
-          </button>
+          {/* Until the file is safely stored there is nothing to save: say so instead of a greyed button. */}
+          {ready ? (
+            <button type="submit" className="btn" disabled={saving}>
+              {saveLabel}
+            </button>
+          ) : (
+            <span className="muted" role="status">
+              {waitingLabel}
+            </span>
+          )}
         </div>
       </div>
     </form>

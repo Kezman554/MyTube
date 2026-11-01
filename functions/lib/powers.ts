@@ -5,6 +5,9 @@ import { all, type User } from './db'
 export const POWERS = ['upload', 'publish_own', 'manage_playlists', 'moderate_comments', 'review_drafts', 'approve_users'] as const
 export type Power = (typeof POWERS)[number]
 
+// The powers the admin access switch suspends (users.admin_access = 0). upload and publish_own stay.
+export const ADMIN_POWERS: readonly Power[] = ['manage_playlists', 'moderate_comments', 'review_drafts', 'approve_users']
+
 // The admin is the ADMIN_EMAIL account (created by the middleware). No power makes anyone admin.
 export function isAdmin(user: { role: string }) {
   return user.role === 'admin'
@@ -14,13 +17,24 @@ export function isPower(value: unknown): value is Power {
   return typeof value === 'string' && (POWERS as readonly string[]).includes(value)
 }
 
-// Read fresh from D1 on every request (the middleware calls this), so a revoked power stops working
-// on the user's next request. In POWERS order.
+// The powers that apply: read fresh from D1 on every request (the middleware calls this), so a revoked
+// power or a switched-off admin access stops working on the user's next request. Every requirePower()
+// check, powersOf() and /api/me go through here. In POWERS order.
 export async function loadPowers(db: D1Database, user: User): Promise<Power[]> {
   if (isAdmin(user)) return [...POWERS]
-  const rows = await all<{ power: string }>(db, 'SELECT power FROM user_powers WHERE user_id = ?', user.id)
+  return effectivePowers(user, await loadStoredPowers(db, user.id))
+}
+
+// What is ticked, whatever the switch says.
+export async function loadStoredPowers(db: D1Database, userId: number): Promise<Power[]> {
+  const rows = await all<{ power: string }>(db, 'SELECT power FROM user_powers WHERE user_id = ?', userId)
   const held = new Set(rows.map((r) => r.power))
   return POWERS.filter((p) => held.has(p))
+}
+
+// Ticked powers less the admin ones while admin access is off.
+export function effectivePowers(user: Pick<User, 'admin_access'>, stored: readonly Power[]): Power[] {
+  return user.admin_access === 0 ? stored.filter((p) => !ADMIN_POWERS.includes(p)) : [...stored]
 }
 
 // Every non-admin user's powers, keyed by user id, for the admin's user list.
@@ -48,7 +62,11 @@ export function readPowerList(value: unknown): { powers: Power[] } | { message: 
   return { powers: POWERS.filter((p) => held.has(p)) }
 }
 
-// A user as the admin's list and the powers endpoint show them: the row plus their powers.
-export function userWithPowers(user: User, powers: readonly Power[]) {
-  return { ...user, powers: isAdmin(user) ? [...POWERS] : [...powers] }
+// A user as the user list and user routes show them. Only the admin sees powers and the switch:
+// powers is what is ticked (all of them for the admin), admin_access whether the admin ones apply.
+// Anyone else (approve_users, moderate_comments) gets the row without them.
+export function userJsonFor(caller: Pick<User, 'role'>, user: User, stored: readonly Power[]) {
+  const { admin_access, ...row } = user
+  if (!isAdmin(caller)) return row
+  return { ...row, powers: isAdmin(user) ? [...POWERS] : [...stored], admin_access: admin_access === 1 }
 }

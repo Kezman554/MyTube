@@ -181,24 +181,29 @@ function PlaylistEditor({
                 {video.status === 'draft' && <span className="muted-inline"> (draft: hidden until published)</span>}
               </span>
               <span className="admin-actions">
-                <button
-                  type="button"
-                  className="btn btn-quiet btn-small"
-                  disabled={busy || i === 0}
-                  aria-label={`Move ${video.title} up`}
-                  onClick={() => move(i, -1)}
-                >
-                  Up
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-quiet btn-small"
-                  disabled={busy || i === playlist.videos.length - 1}
-                  aria-label={`Move ${video.title} down`}
-                  onClick={() => move(i, 1)}
-                >
-                  Down
-                </button>
+                {/* Only the moves that exist: no Up on the first video, no Down on the last. */}
+                {i > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-quiet btn-small"
+                    disabled={busy}
+                    aria-label={`Move ${video.title} up`}
+                    onClick={() => move(i, -1)}
+                  >
+                    Up
+                  </button>
+                )}
+                {i < playlist.videos.length - 1 && (
+                  <button
+                    type="button"
+                    className="btn btn-quiet btn-small"
+                    disabled={busy}
+                    aria-label={`Move ${video.title} down`}
+                    onClick={() => move(i, 1)}
+                  >
+                    Down
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-danger btn-small"
@@ -220,6 +225,7 @@ function PlaylistEditor({
           onSubmit={(e) => {
             e.preventDefault()
             if (choice) void act(() => addToPlaylist(playlist.id, Number(choice))).then(() => setChoice(''))
+            else setError('Choose a video to add first.')
           }}
         >
           <label className="field-label" htmlFor={`${id}-add`}>
@@ -235,7 +241,7 @@ function PlaylistEditor({
                 </option>
               ))}
             </select>
-            <button type="submit" className="btn btn-small" disabled={busy || !choice}>
+            <button type="submit" className="btn btn-small" disabled={busy}>
               Add
             </button>
           </div>

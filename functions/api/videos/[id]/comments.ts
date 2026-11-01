@@ -1,18 +1,22 @@
 import { addComment, commentJson, findReplyTarget, listThreads, readCommentBody, readParentId } from '../../../lib/comments'
 import type { ApiFunction } from '../../../lib/env'
-import { requireApproved } from '../../../lib/guards'
+import { powersOf, requireApproved } from '../../../lib/guards'
+import { isAdmin } from '../../../lib/powers'
 import { readJsonObject } from '../../../lib/uploads'
 import { callerCanSee, loadVideo, videoError } from '../../../lib/videos'
 
 // GET /api/videos/:id/comments -> { comments: [{ id, body, created_at, user: { id, username },
 //   replies: [{ id, body, created_at, user, parent_id, reply_to: { id, username } | null }] }], count },
 // for anyone who can see the video. Top-level comments newest first, replies oldest first; count
-// includes replies.
+// includes replies. For a caller with moderate_comments, each comment and reply also carries
+// moderation: { delete, mute, muted }, saying which controls will work on it.
 const list: ApiFunction = async (context) => {
-  const { env, params } = context
+  const { env, data, params } = context
   const video = await loadVideo(env.DB, params.id)
   if (!video || !(await callerCanSee(context, video))) return videoError(404, 'not_found')
-  return Response.json(await listThreads(env.DB, video.id))
+  const caller = data.user!
+  const mod = (await powersOf(context)).has('moderate_comments') ? { id: caller.id, isAdmin: isAdmin(caller) } : null
+  return Response.json(await listThreads(env.DB, video.id, mod))
 }
 
 // POST /api/videos/:id/comments { body, parent_id? } -> 201 { comment }. Muted users (can_comment = 0)

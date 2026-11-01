@@ -1,7 +1,7 @@
 import { getUserById, updateUser, type UserChanges } from '../../../lib/db'
 import type { ApiFunction } from '../../../lib/env'
 import { actsOnAdmin, cannotActOnAdmin, powersOf, requirePower } from '../../../lib/guards'
-import { isAdmin, loadPowers, userWithPowers } from '../../../lib/powers'
+import { isAdmin, loadStoredPowers, userJsonFor } from '../../../lib/powers'
 
 function badRequest(error: string, message: string) {
   return Response.json({ error, message }, { status: 400 })
@@ -60,7 +60,7 @@ const patch: ApiFunction = async (context) => {
   if (actsOnAdmin(caller, isAdmin(target))) return cannotActOnAdmin("That's the admin's account, so it can't be changed here.")
 
   const user = (await updateUser(env.DB, id, changes))!
-  return Response.json({ user: userWithPowers(user, await loadPowers(env.DB, user)) })
+  return Response.json({ user: userJsonFor(caller, user, await loadStoredPowers(env.DB, user.id)) })
 }
 
 export const onRequestPatch = [requirePower('approve_users', 'moderate_comments'), patch]

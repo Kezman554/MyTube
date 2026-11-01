@@ -1,5 +1,6 @@
 // Client side of /api/videos, /api/playlists and /api/admin/orphans.
 // Mirrors functions/lib/videos.ts and functions/lib/playlists.ts; keep them in step.
+import type { Moderation } from '../admin/api'
 import { request } from '../lib/http'
 
 export type { Result } from '../lib/http'
@@ -62,6 +63,8 @@ export interface Comment {
   body: string
   created_at: string
   user: { id: number; username: string }
+  // Only for callers with moderate_comments: which of Delete and Mute will work on this comment.
+  moderation?: Moderation
 }
 
 // A reply belongs to a top-level comment (parent_id). reply_to is set when it answered another

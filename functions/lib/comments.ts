@@ -12,6 +12,28 @@ export interface CommentRow {
   parent_id: number | null
   reply_to_user_id: number | null
   reply_to_username: string | null
+  user_role: string
+  user_can_comment: number
+}
+
+// Who is looking, for the moderation flags. Null for anyone without moderate_comments.
+export interface Moderator {
+  id: number
+  isAdmin: boolean
+}
+
+// What a moderator can do to one comment, so the page shows only controls that will work:
+//   delete  false under the power for the admin's comment, or a top-level comment with an admin reply
+//           (deleting it would delete that reply); the admin can delete anything
+//   mute    false for the admin's comments and your own
+//   muted   whether the author is muted now (Mute or Unmute)
+export function moderationFor(mod: Moderator, row: CommentRow, threadHasAdminReply: boolean) {
+  const byAdmin = row.user_role === 'admin'
+  return {
+    delete: mod.isAdmin || (!byAdmin && !threadHasAdminReply),
+    mute: !byAdmin && row.user_id !== mod.id,
+    muted: row.user_can_comment === 0,
+  }
 }
 
 // What the API says about a comment: who wrote it (username only, never their email) and when.
@@ -25,7 +47,8 @@ export function commentJson(row: CommentRow) {
 }
 
 const SELECT = `SELECT comments.id, comments.video_id, comments.user_id, users.username, comments.body, comments.created_at,
-    comments.parent_id, comments.reply_to_user_id, reply_to.username AS reply_to_username
+    comments.parent_id, comments.reply_to_user_id, reply_to.username AS reply_to_username,
+    users.role AS user_role, users.can_comment AS user_can_comment
   FROM comments JOIN users ON users.id = comments.user_id LEFT JOIN users AS reply_to ON reply_to.id = comments.reply_to_user_id`
 
 // Every comment on a video, oldest first; id breaks ties between comments posted in the same second.
@@ -34,20 +57,27 @@ function listAll(db: D1Database, videoId: number) {
 }
 
 // The video's comments as threads: top-level comments newest first, each with its replies oldest
-// first, and count, the number of comments including replies.
-export async function listThreads(db: D1Database, videoId: number) {
+// first, and count, the number of comments including replies. With a moderator, each comment and reply
+// also carries moderation (see moderationFor).
+export async function listThreads(db: D1Database, videoId: number, mod: Moderator | null = null) {
   const rows = await listAll(db, videoId)
-  const replies = new Map<number, ReturnType<typeof commentJson>[]>()
+  const adminReplied = new Set(rows.filter((r) => r.parent_id !== null && r.user_role === 'admin').map((r) => r.parent_id))
+  const json = (row: CommentRow) => {
+    const base = commentJson(row)
+    if (!mod) return base
+    return { ...base, moderation: moderationFor(mod, row, row.parent_id === null && adminReplied.has(row.id)) }
+  }
+  const replies = new Map<number, ReturnType<typeof json>[]>()
   for (const row of rows) {
     if (row.parent_id === null) continue
     const list = replies.get(row.parent_id) ?? []
-    list.push(commentJson(row))
+    list.push(json(row))
     replies.set(row.parent_id, list)
   }
   const threads = rows
     .filter((row) => row.parent_id === null)
     .reverse()
-    .map((row) => ({ ...commentJson(row), replies: replies.get(row.id) ?? [] }))
+    .map((row) => ({ ...json(row), replies: replies.get(row.id) ?? [] }))
   return { comments: threads, count: rows.length }
 }
 
@@ -126,10 +156,9 @@ export async function deleteComment(db: D1Database, id: number) {
 // it belongs to; for a top-level comment, how many replies a Delete takes with it.
 export interface RecentCommentRow extends CommentRow {
   video_title: string
-  user_role: string
-  user_can_comment: number
   parent_username: string | null
   reply_count: number
+  admin_replied: number
 }
 
 export const RECENT_COMMENTS_LIMIT = 100
@@ -141,7 +170,9 @@ export function listRecentComments(db: D1Database, limit = RECENT_COMMENTS_LIMIT
        comments.parent_id, comments.reply_to_user_id, reply_to.username AS reply_to_username,
        videos.title AS video_title, users.role AS user_role, users.can_comment AS user_can_comment,
        parent_user.username AS parent_username,
-       (SELECT COUNT(*) FROM comments AS r WHERE r.parent_id = comments.id) AS reply_count
+       (SELECT COUNT(*) FROM comments AS r WHERE r.parent_id = comments.id) AS reply_count,
+       EXISTS (SELECT 1 FROM comments AS r JOIN users AS ru ON ru.id = r.user_id
+               WHERE r.parent_id = comments.id AND ru.role = 'admin') AS admin_replied
      FROM comments JOIN users ON users.id = comments.user_id JOIN videos ON videos.id = comments.video_id
        LEFT JOIN users AS reply_to ON reply_to.id = comments.reply_to_user_id
        LEFT JOIN comments AS parent ON parent.id = comments.parent_id
@@ -151,9 +182,10 @@ export function listRecentComments(db: D1Database, limit = RECENT_COMMENTS_LIMIT
   )
 }
 
-export function recentCommentJson(row: RecentCommentRow) {
+export function recentCommentJson(row: RecentCommentRow, mod: Moderator) {
   return {
     ...commentJson(row),
+    moderation: moderationFor(mod, row, row.admin_replied === 1),
     video: { id: row.video_id, title: row.video_title },
     user: { id: row.user_id, username: row.username, role: row.user_role, can_comment: row.user_can_comment === 1 },
     parent: row.parent_id === null ? null : { id: row.parent_id, username: row.parent_username! },

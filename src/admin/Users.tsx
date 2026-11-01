@@ -1,22 +1,27 @@
 import { useId, useState } from 'react'
 import { can, isAdmin, useMe } from '../auth/MeContext'
-import { POWER_LABELS, POWERS, type Power } from '../auth/powers'
+import { ADMIN_POWERS, POWER_LABELS, POWERS, type Power } from '../auth/powers'
 import { useLoad } from '../lib/useLoad'
 import { LoadFailed, Loading } from '../pages/Status'
-import { listUsers, setPowers, updateUser, type AdminUser, type UserChanges } from './api'
+import { listUsers, setAdminAccess, setPowers, updateUser, type AdminUser, type UserChanges } from './api'
 import './admin.css'
 
 // approve_users: approve or reject people who have registered, then manage everyone approved.
 // Removed users are not listed. Rejecting and removing both set status = 'removed' and ask first.
-// Mute needs moderate_comments too; only the admin sees and changes each person's powers.
+// Mute needs moderate_comments too; only the admin sees and changes each person's powers and admin
+// access. Helpers see only the people they can act on, and only the controls their powers work.
 export function Users() {
+  const me = useMe()
   const [users, reload] = useLoad('users', listUsers)
 
   if (users.kind === 'loading') return <Loading what="users" />
   if (users.kind === 'failed') return <LoadFailed message={users.message} onRetry={reload} />
 
   const pending = users.value.filter((u) => u.status === 'pending')
-  const approved = users.value.filter((u) => u.status === 'approved')
+  // Helpers (approve_users) see only people they can act on: never the admin, never themselves.
+  const approved = users.value.filter(
+    (u) => u.status === 'approved' && (isAdmin(me) || (u.role !== 'admin' && u.id !== me.user.id)),
+  )
 
   return (
     <>
@@ -38,11 +43,15 @@ export function Users() {
         <h2 id="approved-title" className="panel-title">
           Approved users ({approved.length})
         </h2>
-        <ul className="admin-list">
-          {approved.map((user) => (
-            <ApprovedRow key={user.id} user={user} onChanged={reload} />
-          ))}
-        </ul>
+        {approved.length === 0 ? (
+          <p className="muted">Nobody else yet.</p>
+        ) : (
+          <ul className="admin-list">
+            {approved.map((user) => (
+              <ApprovedRow key={user.id} user={user} onChanged={reload} />
+            ))}
+          </ul>
+        )}
       </section>
     </>
   )
@@ -128,15 +137,12 @@ function ApprovedRow({ user, onChanged }: { user: AdminUser; onChanged: () => vo
     setConfirm('none')
   }
 
-  // Nothing done under a power acts on the admin, and nobody removes themselves: no controls there.
+  // Only the admin sees these rows (helpers never get them): the admin's own, and the admin as such.
   if (user.role === 'admin' || self) {
     return (
       <li className="admin-item">
         <Who user={user} />
-        <p className="muted">
-          {user.role === 'admin' ? 'Admin' : <PowerSummary powers={user.powers} />}
-          {self ? ' (you)' : ''}
-        </p>
+        <p className="muted">{user.role === 'admin' ? 'Admin' : ''}{self ? ' (you)' : ''}</p>
       </li>
     )
   }
@@ -144,13 +150,7 @@ function ApprovedRow({ user, onChanged }: { user: AdminUser; onChanged: () => vo
   return (
     <li className="admin-item">
       <Who user={user} />
-      {isAdmin(me) ? (
-        <PowersEditor user={user} onSaved={onChanged} />
-      ) : (
-        <p className="muted">
-          <PowerSummary powers={user.powers} />
-        </p>
-      )}
+      {isAdmin(me) && <PowersEditor user={user} onSaved={onChanged} />}
       <ErrorLine error={error} />
       {confirm === 'none' ? (
         <div className="admin-actions">
@@ -188,18 +188,17 @@ function ApprovedRow({ user, onChanged }: { user: AdminUser; onChanged: () => vo
   )
 }
 
-function PowerSummary({ powers }: { powers: Power[] }) {
-  return <>{powers.length === 0 ? 'Watches and comments' : powers.map((p) => POWER_LABELS[p].name).join(', ')}</>
-}
-
-// The admin only: tick the powers this person should have, then Save. The server takes the full list,
-// and the change applies from their next request.
+// The admin only: the admin access switch, then a checkbox per power and Save. The server takes the
+// full list, and changes apply from the person's next request. With admin access off, the admin powers
+// stay ticked but are marked paused: switching it back on restores exactly these.
 function PowersEditor({ user, onSaved }: { user: AdminUser; onSaved: () => void }) {
   const id = useId()
-  const [chosen, setChosen] = useState<Set<Power>>(() => new Set(user.powers))
+  const stored = user.powers ?? []
+  const [chosen, setChosen] = useState<Set<Power>>(() => new Set(stored))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const dirty = chosen.size !== user.powers.length || user.powers.some((p) => !chosen.has(p))
+  const dirty = chosen.size !== stored.length || stored.some((p) => !chosen.has(p))
+  const access = user.admin_access !== false
 
   function toggle(power: Power, on: boolean) {
     const next = new Set(chosen)
@@ -208,40 +207,68 @@ function PowersEditor({ user, onSaved }: { user: AdminUser; onSaved: () => void 
     setChosen(next)
   }
 
-  async function save() {
+  async function run(action: () => Promise<{ ok: boolean; message?: string }>) {
     setBusy(true)
     setError(null)
-    const result = await setPowers(user.id, POWERS.filter((p) => chosen.has(p)))
+    const result = await action()
     setBusy(false)
     if (result.ok) onSaved()
-    else setError(result.message)
+    else setError(result.message ?? null)
   }
 
   return (
     <fieldset className="powers" aria-describedby={`${id}-hint`}>
       <legend className="field-label">Powers</legend>
+      <div className="powers-access">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={access}
+          aria-describedby={`${id}-access`}
+          className="switch"
+          disabled={busy}
+          onClick={() => void run(() => setAdminAccess(user.id, !access))}
+        >
+          <span className="switch-track" aria-hidden="true">
+            <span className="switch-thumb" />
+          </span>
+          <span className="switch-label">Admin access</span>
+          <span className="switch-state">{access ? 'On' : 'Off'}</span>
+        </button>
+        <p id={`${id}-access`} className="muted powers-hint">
+          {access
+            ? 'Off pauses the admin powers below, keeping the ticks. Upload and publishing their own stay.'
+            : 'Paused: the admin powers below don\'t apply until this is back on.'}
+        </p>
+      </div>
       <p id={`${id}-hint`} className="muted powers-hint">
         Everyone approved can watch, like and comment. Powers add to that.
       </p>
       <ul className="powers-list">
-        {POWERS.map((power) => (
-          <li key={power}>
-            <label className="powers-check">
-              <input type="checkbox" checked={chosen.has(power)} disabled={busy} onChange={(e) => toggle(power, e.target.checked)} />
-              <span>
-                <span className="powers-name">{POWER_LABELS[power].name}</span>
-                <span className="muted powers-detail">{POWER_LABELS[power].detail}</span>
-              </span>
-            </label>
-          </li>
-        ))}
+        {POWERS.map((power) => {
+          const paused = !access && ADMIN_POWERS.includes(power)
+          return (
+            <li key={power}>
+              <label className="powers-check">
+                <input type="checkbox" checked={chosen.has(power)} disabled={busy} onChange={(e) => toggle(power, e.target.checked)} />
+                <span>
+                  <span className="powers-name">
+                    {POWER_LABELS[power].name}
+                    {paused && chosen.has(power) && <span className="chip powers-paused">Paused</span>}
+                  </span>
+                  <span className="muted powers-detail">{POWER_LABELS[power].detail}</span>
+                </span>
+              </label>
+            </li>
+          )
+        })}
       </ul>
       <div className="admin-actions">
-        <button type="button" className="btn btn-small" disabled={busy || !dirty} onClick={() => void save()}>
+        <button type="button" className="btn btn-small" disabled={busy || !dirty} onClick={() => void run(() => setPowers(user.id, POWERS.filter((p) => chosen.has(p))))}>
           {busy ? 'Saving…' : `Save ${user.username}'s powers`}
         </button>
         {dirty && !busy && (
-          <button type="button" className="btn btn-quiet btn-small" onClick={() => setChosen(new Set(user.powers))}>
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => setChosen(new Set(stored))}>
             Undo changes
           </button>
         )}

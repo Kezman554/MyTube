@@ -13,6 +13,8 @@ export interface User {
   role: Role
   status: UserStatus
   can_comment: 0 | 1
+  // 0 suspends the admin powers (lib/powers.ts ADMIN_POWERS) without forgetting them.
+  admin_access: 0 | 1
   created_at: string
 }
 
