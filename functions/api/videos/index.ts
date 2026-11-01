@@ -1,8 +1,8 @@
 import { createVideo, listVisibleVideos, type VideoStatus } from '../../lib/db'
 import type { ApiFunction } from '../../lib/env'
-import { requireApproved, requireRole } from '../../lib/guards'
+import { powersOf, requireApproved, requirePower } from '../../lib/guards'
 import { deleteObject, putObject } from '../../lib/storage'
-import { readText, readThumbnail, readVideoForm, resolveVideoKey, videoError, videoJson } from '../../lib/videos'
+import { canPublish, isAdminId, readText, readThumbnail, readVideoForm, resolveVideoKey, videoError, videoJson } from '../../lib/videos'
 
 // GET /api/videos -> { videos }: every published video, plus the caller's own drafts, newest first,
 // each with view_count and like_count. Approval is enforced by the /api gate and requireApproved.
@@ -18,9 +18,11 @@ export const onRequestGet = [requireApproved, list]
 //   title        required, up to 100 characters
 //   description  optional, up to 5000 characters
 //   thumbnail    optional JPG, PNG or WebP file, up to 5 MB
-//   publish      'true' to publish straight away: admin only; a creator's video is always a draft
+//   publish      'true' to publish straight away: needs publish_own (or review_drafts, or the admin);
+//                anyone else's video is always a draft, and so is it if they send publish without the power
 // -> 201 with the video
-const create: ApiFunction = async ({ request, env, data }) => {
+const create: ApiFunction = async (context) => {
+  const { request, env, data } = context
   const user = data.user!
   const form = await readVideoForm(request)
   if (form instanceof Response) return form
@@ -35,7 +37,10 @@ const create: ApiFunction = async ({ request, env, data }) => {
   const source = await resolveVideoKey(env.DB, env.MEDIA, user, form.get('key'))
   if (source instanceof Response) return source
 
-  const status: VideoStatus = user.role === 'admin' && form.get('publish') === 'true' ? 'published' : 'draft'
+  const publish =
+    form.get('publish') === 'true' &&
+    canPublish(user, await powersOf(context), source.uploadedBy, source.uploadedBy !== user.id && (await isAdminId(env.DB, source.uploadedBy)))
+  const status: VideoStatus = publish ? 'published' : 'draft'
 
   if (thumbnail) await putObject(env.MEDIA, thumbnail.key, thumbnail.bytes, thumbnail.contentType)
   try {
@@ -56,4 +61,4 @@ const create: ApiFunction = async ({ request, env, data }) => {
   }
 }
 
-export const onRequestPost = [requireRole('creator'), create]
+export const onRequestPost = [requirePower('upload'), create]

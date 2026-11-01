@@ -1,6 +1,6 @@
 import { createUpload } from '../../lib/db'
 import type { ApiFunction } from '../../lib/env'
-import { requireRole } from '../../lib/guards'
+import { requirePower } from '../../lib/guards'
 import { createMultipartUpload, newVideoKey } from '../../lib/storage'
 import { MAX_VIDEO_BYTES, PART_BYTES, readJsonObject, uploadError, videoContentType } from '../../lib/uploads'
 
@@ -35,4 +35,4 @@ const start: ApiFunction = async ({ request, env, data }) => {
   return Response.json({ uploadId, key, partSize: PART_BYTES }, { status: 201 })
 }
 
-export const onRequestPost = [requireRole('creator'), start]
+export const onRequestPost = [requirePower('upload'), start]

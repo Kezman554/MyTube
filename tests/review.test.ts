@@ -21,7 +21,7 @@ import {
 } from '../functions/lib/db'
 import type { Env } from '../functions/lib/env'
 import { newThumbnailKey, newVideoKey } from '../functions/lib/storage'
-import { createTestDb, runChain } from './helpers'
+import { createCreator, createTestDb, runChain } from './helpers'
 
 let mf: Miniflare
 let env: Env
@@ -32,8 +32,8 @@ beforeAll(async () => {
   mf = test.mf
   env = { DB: test.db, MEDIA: test.bucket, ACCESS_AUD: 'aud', ACCESS_TEAM_DOMAIN: 'team', ADMIN_EMAIL: 'admin@example.com' }
   admin = (await createUser(env.DB, 'admin@example.com', 'Dad', 'admin', 'approved'))!
-  creator = (await createUser(env.DB, 'son@example.com', 'CrAzYeNdErMaN', 'creator', 'approved'))!
-  otherCreator = (await createUser(env.DB, 'cousin@example.com', 'Cousin', 'creator', 'approved'))!
+  creator = (await createCreator(env.DB, 'son@example.com', 'CrAzYeNdErMaN', 'approved'))!
+  otherCreator = (await createCreator(env.DB, 'cousin@example.com', 'Cousin', 'approved'))!
   viewer = (await createUser(env.DB, 'nan@example.com', 'Nan', 'viewer', 'approved'))!
   pending = (await createUser(env.DB, 'new@example.com', 'Newbie', 'viewer', 'pending'))!
 })

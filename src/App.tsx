@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
-import { BrowserRouter, Route, Routes } from 'react-router'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { AuthGate } from './auth/AuthGate'
-import { canUpload, useMe } from './auth/MeContext'
-import type { User } from './auth/api'
-import { AdminPage, type AdminTab } from './pages/AdminPage'
+import { can, useMe, type ApprovedMe } from './auth/MeContext'
+import { ADMIN_TABS, adminTabsFor } from './admin/tabs'
+import { AdminPage } from './pages/AdminPage'
 import { ChannelPage } from './pages/ChannelPage'
 import { PlaylistPage } from './pages/PlaylistPage'
 import { NotFoundPage } from './pages/Status'
@@ -11,19 +11,20 @@ import { UploadPage } from './pages/UploadPage'
 import { WatchPage } from './pages/WatchPage'
 import { Shell } from './shell/Shell'
 
-// A page only some roles may open. Everyone else gets Not found, so it doesn't reveal it exists.
+// A page only some people may open. Everyone else gets Not found, so it doesn't reveal it exists.
 // The API enforces the same rules; this only keeps people off pages that would fail for them.
-function Only({ allow, children }: { allow: (user: User) => boolean; children: ReactNode }) {
-  const { user } = useMe()
-  return allow(user) ? children : <NotFoundPage />
+function Only({ allow, children }: { allow: (me: ApprovedMe) => boolean; children: ReactNode }) {
+  return allow(useMe()) ? children : <NotFoundPage />
 }
 
-const ADMIN_ROUTES: [string, AdminTab][] = [
-  ['admin', 'users'],
-  ['admin/drafts', 'drafts'],
-  ['admin/comments', 'comments'],
-  ['admin/content', 'content'],
-]
+// /admin is the Users tab. Someone without approve_users but with another tab's power is taken to
+// their first tab instead; with none of them, it is Not found.
+function AdminHome() {
+  const me = useMe()
+  if (can(me, 'approve_users')) return <AdminPage tab="users" />
+  const first = adminTabsFor(me)[0]
+  return first ? <Navigate to={first.to} replace /> : <NotFoundPage />
+}
 
 // AuthGate first (register, pending and removed screens), then the routes for approved users.
 function App() {
@@ -39,18 +40,19 @@ function App() {
             <Route
               path="upload"
               element={
-                <Only allow={canUpload}>
+                <Only allow={(me) => can(me, 'upload')}>
                   <UploadPage />
                 </Only>
               }
             />
-            {ADMIN_ROUTES.map(([path, tab]) => (
+            <Route path="admin" element={<AdminHome />} />
+            {ADMIN_TABS.filter((t) => t.tab !== 'users').map((t) => (
               <Route
-                key={path}
-                path={path}
+                key={t.tab}
+                path={t.to.slice(1)}
                 element={
-                  <Only allow={(user) => user.role === 'admin'}>
-                    <AdminPage tab={tab} />
+                  <Only allow={(me) => can(me, t.power)}>
+                    <AdminPage tab={t.tab} />
                   </Only>
                 }
               />

@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { gate, OPEN_ROUTES } from '../functions/api/_middleware'
 import type { User } from '../functions/lib/db'
 import type { Env } from '../functions/lib/env'
-import { runChain } from './helpers'
+import { POWERS, type Power } from '../functions/lib/powers'
+import { ROUTE_REACHED, runChain } from './helpers'
 
-// Every route in functions/api/ and the guard it must carry. A route added without a line here fails
-// the first test, so each new route gets a decision. 'open' routes are the gate's OPEN_ROUTES only.
-type Guard = 'open' | 'approved' | 'creator' | 'admin'
-const EXPECTED: Record<string, Guard> = {
+// Every route in functions/api/ and what it needs. A route added without a line here fails the first
+// test, so each new route gets a decision.
+//   'open'      the gate's OPEN_ROUTES only: no approval needed
+//   'approved'  any approved user
+//   a power     an approved user holding it (the admin holds every power)
+//   [powers]    an approved user holding any one of them; the handler then checks each field's power
+//   'admin'     the admin only: no power covers it
+type Need = 'open' | 'approved' | 'admin' | Power | Power[]
+const EXPECTED: Record<string, Need> = {
   'GET /api/health': 'open',
   'GET /api/me': 'open',
   'POST /api/register': 'open',
@@ -24,30 +30,38 @@ const EXPECTED: Record<string, Guard> = {
   'GET /api/stream/[id]': 'approved',
   'GET /api/thumbnails/[id]': 'approved',
 
-  'POST /api/videos': 'creator',
-  'PATCH /api/videos/[id]': 'creator',
-  'POST /api/uploads/start': 'creator',
-  'PUT /api/uploads/part': 'creator',
-  'POST /api/uploads/complete': 'creator',
-  'POST /api/uploads/abort': 'creator',
+  'POST /api/videos': 'upload',
+  'PATCH /api/videos/[id]': 'upload',
+  'POST /api/uploads/start': 'upload',
+  'PUT /api/uploads/part': 'upload',
+  'POST /api/uploads/complete': 'upload',
+  'POST /api/uploads/abort': 'upload',
+
+  'POST /api/videos/[id]/publish': 'publish_own',
+
+  'GET /api/admin/playlists': 'manage_playlists',
+  'POST /api/admin/playlists': 'manage_playlists',
+  'PATCH /api/admin/playlists/[id]': 'manage_playlists',
+  'DELETE /api/admin/playlists/[id]': 'manage_playlists',
+  'PUT /api/admin/playlists/[id]/order': 'manage_playlists',
+  'POST /api/admin/playlists/[id]/videos': 'manage_playlists',
+  'DELETE /api/admin/playlists/[id]/videos/[videoId]': 'manage_playlists',
+
+  'GET /api/admin/comments': 'moderate_comments',
+  'DELETE /api/admin/comments/[id]': 'moderate_comments',
+
+  'GET /api/admin/videos': 'review_drafts',
+  'POST /api/admin/videos/[id]/publish': 'review_drafts',
+  'POST /api/admin/videos/[id]/reject': 'review_drafts',
+
+  'GET /api/admin/users': 'approve_users',
+  // status needs approve_users, can_comment (mute) needs moderate_comments: checked per field.
+  'PATCH /api/admin/users/[id]': ['approve_users', 'moderate_comments'],
 
   'DELETE /api/videos/[id]': 'admin',
-  'GET /api/admin/users': 'admin',
-  'PATCH /api/admin/users/[id]': 'admin',
-  'GET /api/admin/videos': 'admin',
-  'POST /api/admin/videos/[id]/publish': 'admin',
-  'POST /api/admin/videos/[id]/reject': 'admin',
-  'GET /api/admin/comments': 'admin',
-  'DELETE /api/admin/comments/[id]': 'admin',
+  'PUT /api/admin/users/[id]/powers': 'admin',
   'GET /api/admin/orphans': 'admin',
   'DELETE /api/admin/orphans': 'admin',
-  'GET /api/admin/playlists': 'admin',
-  'POST /api/admin/playlists': 'admin',
-  'PATCH /api/admin/playlists/[id]': 'admin',
-  'DELETE /api/admin/playlists/[id]': 'admin',
-  'PUT /api/admin/playlists/[id]/order': 'admin',
-  'POST /api/admin/playlists/[id]/videos': 'admin',
-  'DELETE /api/admin/playlists/[id]/videos/[videoId]': 'admin',
 }
 
 type Handler = (context: never) => Response | Promise<Response>
@@ -66,6 +80,7 @@ for (const [file, mod] of Object.entries(modules)) {
 }
 
 // If a guard lets a request through, the route touches the database or bucket, and this says so.
+// Powers come in data.powers, as the middleware sets them, so a guard never needs the database.
 const tripwire = new Proxy({} as Record<string, unknown>, {
   get(_, prop) {
     if (prop === 'then') return undefined
@@ -74,19 +89,41 @@ const tripwire = new Proxy({} as Record<string, unknown>, {
 })
 const env = { DB: tripwire, MEDIA: tripwire, ACCESS_AUD: 'aud', ACCESS_TEAM_DOMAIN: 'team', ADMIN_EMAIL: 'admin@example.com' } as unknown as Env
 
-function user(role: User['role'], status: User['status']): User {
-  return { id: 7, email: `${role}-${status}@example.com`, username: `${role}${status}`, role, status, can_comment: 1, created_at: '2026-10-17T00:00:00Z' }
+interface Caller {
+  label: string
+  user: User | null
+  powers: Power[]
 }
-const PENDING = user('viewer', 'pending')
-const REMOVED = user('creator', 'removed')
-const VIEWER = user('viewer', 'approved')
-const CREATOR = user('creator', 'approved')
 
-// Who must be refused for each guard. Each of them, plus an unregistered caller, gets 403 before the handler.
-const REFUSED: Record<Exclude<Guard, 'open'>, (User | null)[]> = {
-  approved: [null, PENDING, REMOVED],
-  creator: [null, PENDING, REMOVED, VIEWER],
-  admin: [null, PENDING, REMOVED, VIEWER, CREATOR],
+function caller(label: string, role: User['role'], status: User['status'], powers: readonly Power[] = []): Caller {
+  const user: User = { id: 7, email: `${label}@example.com`, username: label, role, status, can_comment: 1, created_at: '2026-10-17T00:00:00Z' }
+  return { label, user, powers: [...powers] }
+}
+const STRANGER: Caller = { label: 'unregistered', user: null, powers: [] }
+// Pending and removed callers holding every power are still refused: powers act only once approved.
+const PENDING = caller('pending', 'viewer', 'pending', POWERS)
+const REMOVED = caller('removed', 'viewer', 'removed', POWERS)
+const VIEWER = caller('viewer', 'viewer', 'approved')
+const EVERY_POWER = caller('every-power', 'viewer', 'approved', POWERS)
+const ADMIN = caller('admin', 'admin', 'approved', POWERS)
+
+const needed = (need: Need): Power[] => (Array.isArray(need) ? need : [need as Power])
+const isPowerNeed = (need: Need) => Array.isArray(need) || (POWERS as readonly string[]).includes(need)
+
+// Who must be refused, and who must get through, for each need.
+function refused(need: Need): Caller[] {
+  const unapproved = [STRANGER, PENDING, REMOVED]
+  if (need === 'approved') return unapproved
+  if (need === 'admin') return [...unapproved, VIEWER, EVERY_POWER]
+  // Every other power, but not the one (or ones) the route needs.
+  const others = POWERS.filter((p) => !needed(need).includes(p))
+  return [...unapproved, VIEWER, caller(`all-but-${needed(need).join('-')}`, 'viewer', 'approved', others)]
+}
+
+function admitted(need: Need): Caller[] {
+  if (need === 'approved') return [VIEWER, ADMIN]
+  if (need === 'admin') return [ADMIN]
+  return [...needed(need).map((p) => caller(`only-${p}`, 'viewer', 'approved', [p])), ADMIN]
 }
 
 function request(key: string) {
@@ -96,30 +133,48 @@ function request(key: string) {
 }
 
 const params = { id: '1', videoId: '1' }
+const run = (handlers: Handler[], who: Caller, key: string) =>
+  runChain(handlers, { env, data: { email: who.user?.email ?? 'stranger@example.com', user: who.user, powers: who.powers }, request: request(key), params })
 
 describe('every route in functions/api', () => {
-  it('is in the guard table, and the table has no stale entries', () => {
+  it('is in the table, and the table has no stale entries', () => {
     expect([...routes.keys()].sort()).toEqual(Object.keys(EXPECTED).sort())
   })
 
-  it('opens exactly the gate\'s OPEN_ROUTES, with no guard of their own', () => {
+  it("opens exactly the gate's OPEN_ROUTES, with no guard of their own", () => {
     const open = Object.entries(EXPECTED).filter(([, g]) => g === 'open').map(([key]) => key.split(' ')[1])
     expect(open.sort()).toEqual([...OPEN_ROUTES].sort())
   })
 
-  for (const [key, guard] of Object.entries(EXPECTED)) {
-    if (guard === 'open') continue
-    it(`${key} refuses everyone below ${guard} with its own guard, before the handler runs`, async () => {
+  it('gives every power at least one route', () => {
+    const named = new Set(Object.values(EXPECTED).filter(isPowerNeed).flatMap(needed))
+    expect([...named].sort()).toEqual([...POWERS].sort())
+  })
+
+  for (const [key, need] of Object.entries(EXPECTED)) {
+    if (need === 'open') continue
+    const label = Array.isArray(need) ? need.join(' or ') : need
+
+    it(`${key} refuses everyone without ${label} with its own guard, before the handler runs`, async () => {
       const handlers = routes.get(key)!
       expect(handlers.length).toBeGreaterThan(1)
-      for (const who of REFUSED[guard]) {
-        const res = await runChain(handlers, { env, data: { email: who?.email ?? 'stranger@example.com', user: who }, request: request(key), params })
-        expect(res.status, `${key} as ${who ? `${who.role}/${who.status}` : 'unregistered'}`).toBe(403)
+      for (const who of refused(need)) {
+        const res = await run(handlers, who, key)
+        expect(res.status, `${key} as ${who.label}`).toBe(403)
+      }
+    })
+
+    // The guards alone (the route's handler stood in for by ROUTE_REACHED) let these callers through.
+    it(`${key} admits ${label}${need === 'admin' ? '' : ' and the admin'}`, async () => {
+      const guards = routes.get(key)!.slice(0, -1)
+      for (const who of admitted(need)) {
+        const res = await run(guards, who, key)
+        expect(await res.text(), `${key} as ${who.label}`).toBe(ROUTE_REACHED)
       }
     })
 
     it(`${key} is also refused to pending users by the /api gate`, async () => {
-      const res = await runChain([gate, ...routes.get(key)!], { env, data: { email: PENDING.email, user: PENDING }, request: request(key), params })
+      const res = await run([gate, ...routes.get(key)!], PENDING, key)
       expect(res.status).toBe(403)
     })
   }

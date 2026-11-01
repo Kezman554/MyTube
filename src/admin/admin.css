@@ -79,16 +79,68 @@ h3.admin-item-name {
   overflow-wrap: anywhere;
 }
 
-.admin-role {
-  display: flex;
-  align-items: center;
+/* Users tab, the admin only: one checkbox per power, then Save. */
+.powers {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  min-width: 0;
+  border: var(--border-width) solid var(--border);
+}
+
+.powers legend {
+  padding: 0 4px;
+}
+
+.powers-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.powers-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
   gap: 8px;
 }
 
-.admin-role .input {
-  width: auto;
-  min-height: 36px;
-  padding: 4px 10px;
+@media (min-width: 720px) {
+  .powers-list {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 24px;
+  }
+}
+
+.powers-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.powers-check input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--accent-fill);
+}
+
+.powers-check input:focus-visible {
+  outline: var(--border-width) solid var(--link);
+  outline-offset: var(--border-width);
+}
+
+.powers-name {
+  display: block;
+  font-weight: 600;
+}
+
+.powers-detail {
+  display: block;
+  font-size: 0.8125rem;
 }
 
 /* Drafts: the preview player above the details on a phone, beside them on wider screens. */

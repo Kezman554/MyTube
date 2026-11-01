@@ -1,8 +1,9 @@
 // Client side of /api/admin/users, /api/admin/videos and /api/admin/comments. Mirrors functions/api/admin; keep them in step.
+import type { Power } from '../auth/powers'
 import { request } from '../lib/http'
 import type { Video } from '../videos/api'
 
-export type Role = 'admin' | 'creator' | 'viewer'
+export type Role = 'admin' | 'viewer'
 export type UserStatus = 'pending' | 'approved' | 'removed'
 
 export interface AdminUser {
@@ -13,11 +14,13 @@ export interface AdminUser {
   status: UserStatus
   can_comment: 0 | 1
   created_at: string
+  // Every power for the admin.
+  powers: Power[]
 }
 
+// status needs approve_users, can_comment (mute) moderate_comments.
 export interface UserChanges {
   status?: 'approved' | 'removed'
-  role?: 'creator' | 'viewer'
   can_comment?: boolean
 }
 
@@ -26,7 +29,11 @@ export const listUsers = () => request('/api/admin/users', {}, (b: { users: Admi
 export const updateUser = (id: number, changes: UserChanges) =>
   request(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }, (b: { user: AdminUser }) => b.user)
 
-// The review queue: every creator draft, oldest first.
+// Admin only: the user's full list of powers afterwards.
+export const setPowers = (id: number, powers: Power[]) =>
+  request(`/api/admin/users/${id}/powers`, { method: 'PUT', body: JSON.stringify({ powers }) }, (b: { user: AdminUser }) => b.user)
+
+// The review queue: every draft, oldest first (the admin's own only for the admin).
 export interface Draft extends Video {
   uploader: { id: number; username: string }
 }

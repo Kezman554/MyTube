@@ -1,6 +1,6 @@
 import { deleteUpload } from '../../lib/db'
 import type { ApiFunction } from '../../lib/env'
-import { requireRole } from '../../lib/guards'
+import { requirePower } from '../../lib/guards'
 import { abortMultipartUpload } from '../../lib/storage'
 import { loadOwnUpload, readJsonObject, uploadError } from '../../lib/uploads'
 
@@ -20,4 +20,4 @@ const abort: ApiFunction = async ({ request, env, data }) => {
   return Response.json({ ok: true })
 }
 
-export const onRequestPost = [requireRole('creator'), abort]
+export const onRequestPost = [requirePower('upload'), abort]

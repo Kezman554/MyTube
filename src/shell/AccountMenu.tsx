@@ -1,16 +1,16 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
-import type { User } from '../auth/api'
-import { canUpload } from '../auth/MeContext'
+import { can, isAdmin, type ApprovedMe } from '../auth/MeContext'
+import { adminTabsFor } from '../admin/tabs'
 import { useTheme } from '../lib/theme'
 import { MoonMark, SunMark } from './Pixels'
 
-const ROLE_NAMES = { admin: 'Admin', creator: 'Creator', viewer: 'Viewer' } as const
-
 // The square account button in the top bar, and the menu it opens: who you are, then the pages
-// your role can reach. Upload shows for creators and the admin, Admin for the admin only.
+// your powers reach. Upload shows with the upload power; Admin with any power an admin tab needs
+// (the admin holds them all).
 // A disclosure (button + list of links), not an ARIA menu, so Tab and Enter work as everywhere else.
-export function AccountMenu({ user }: { user: User }) {
+export function AccountMenu({ me }: { me: ApprovedMe }) {
+  const { user } = me
   const [open, setOpen] = useState(false)
   const id = useId()
   const root = useRef<HTMLDivElement>(null)
@@ -54,7 +54,7 @@ export function AccountMenu({ user }: { user: User }) {
         <div id={`${id}-menu`} className="account-menu">
           <p className="account-who">
             <span className="account-name">{user.username}</span>
-            <span className="muted">{ROLE_NAMES[user.role]}</span>
+            {isAdmin(me) && <span className="muted">Admin</span>}
           </p>
           {/* Shows the mode you're in; pressing it switches to the other and remembers it on this device. */}
           <div className="account-theme">
@@ -80,14 +80,14 @@ export function AccountMenu({ user }: { user: User }) {
                 Playlists
               </Link>
             </li>
-            {canUpload(user) && (
+            {can(me, 'upload') && (
               <li>
                 <Link to="/upload" onClick={close}>
                   Upload
                 </Link>
               </li>
             )}
-            {user.role === 'admin' && (
+            {adminTabsFor(me).length > 0 && (
               <li>
                 <Link to="/admin" onClick={close}>
                   Admin

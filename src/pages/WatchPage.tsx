@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { useParams } from 'react-router'
+import { can, isAdmin, useMe } from '../auth/MeContext'
 import { plurals, timeAgo } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
 import { EnderFace } from '../shell/Pixels'
-import { getVideo, recordView, setLiked, type Video } from '../videos/api'
+import { getVideo, publishOwn, recordView, setLiked, type Video } from '../videos/api'
 import { CHANNEL_NAME } from './ChannelPage'
 import { Comments } from './Comments'
 import { LoadFailed, Loading, NotFoundPage } from './Status'
@@ -21,7 +22,7 @@ export function WatchPage() {
     <div className="watch">
       {video.kind === 'ready' ? (
         // Keyed by id, so moving to another video starts a fresh player and view count.
-        <Watch key={video.value.id} video={video.value} />
+        <Watch key={video.value.id} video={video.value} onPublished={reload} />
       ) : (
         <>
           <div className="player" />
@@ -35,7 +36,10 @@ export function WatchPage() {
   )
 }
 
-function Watch({ video }: { video: Video }) {
+function Watch({ video, onPublished }: { video: Video; onPublished: () => void }) {
+  const me = useMe()
+  // Your own draft, with publish_own (the admin publishes from the Drafts tab or here alike).
+  const canPublishOwn = video.uploaded_by === me.user.id && (can(me, 'publish_own') || isAdmin(me))
   const player = useRef<HTMLVideoElement>(null)
   const [views, setViews] = useState(video.view_count ?? 0)
   const [failed, setFailed] = useState(false)
@@ -91,7 +95,7 @@ function Watch({ video }: { video: Video }) {
           <h1 className="watch-title">{video.title}</h1>
           <p className="muted">
             {draft ? (
-              <span className="chip">Draft: only you and the admin can see this</span>
+              <span className="chip">Draft: not on the channel yet</span>
             ) : (
               `${plurals(views, 'view')} · ${timeAgo(video.published_at ?? video.created_at)}`
             )}
@@ -121,9 +125,52 @@ function Watch({ video }: { video: Video }) {
             )}
           </div>
         )}
-        {video.description &&<p className="watch-description">{video.description}</p>}
+        {draft && canPublishOwn && <PublishOwn videoId={video.id} onPublished={onPublished} />}
+        {video.description && <p className="watch-description">{video.description}</p>}
         <Comments videoId={video.id} published={!draft} />
       </div>
     </>
+  )
+}
+
+// publish_own: put one of your own drafts on the channel without review. Asks first, since everyone
+// approved will see it straight away.
+function PublishOwn({ videoId, onPublished }: { videoId: number; onPublished: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function publish() {
+    setBusy(true)
+    setError(null)
+    const result = await publishOwn(videoId)
+    setBusy(false)
+    if (result.ok) onPublished()
+    else setError(result.message)
+  }
+
+  return (
+    <div className="watch-publish">
+      {confirming ? (
+        <>
+          <p className="watch-publish-question">Publish this video? Everyone on MyTube will be able to watch it.</p>
+          <button type="button" className="btn btn-small" disabled={busy} onClick={() => void publish()}>
+            {busy ? 'Publishing…' : 'Yes, publish'}
+          </button>
+          <button type="button" className="btn btn-quiet btn-small" disabled={busy} onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button type="button" className="btn btn-small" onClick={() => setConfirming(true)}>
+          Publish
+        </button>
+      )}
+      {error && (
+        <p className="alert-error watch-publish-question" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   )
 }

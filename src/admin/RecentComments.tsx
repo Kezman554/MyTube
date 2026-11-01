@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { isAdmin, useMe } from '../auth/MeContext'
 import { commentAge } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
 import { LoadFailed, Loading } from '../pages/Status'
@@ -38,8 +39,12 @@ function CommentRow({ comment, onChanged }: { comment: RecentComment; onChanged:
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const me = useMe()
   const { user, parent } = comment
   const muted = !user.can_comment
+  // Under moderate_comments, the admin's own comments are left alone (the server refuses with 403);
+  // the admin can delete anything. A thread holding an admin reply is refused by the server too.
+  const canDelete = isAdmin(me) || user.role !== 'admin'
   const n = comment.reply_count
   const question = parent
     ? `Delete this reply by ${user.username}?`
@@ -97,9 +102,11 @@ function CommentRow({ comment, onChanged }: { comment: RecentComment; onChanged:
         </div>
       ) : (
         <div className="admin-actions">
-          <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => setConfirming(true)}>
-            Delete
-          </button>
+          {canDelete && (
+            <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => setConfirming(true)}>
+              Delete
+            </button>
+          )}
           {user.role !== 'admin' &&
             (muted ? (
               <button

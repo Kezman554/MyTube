@@ -1,4 +1,5 @@
 // Client side of /api/me and /api/register. Mirrors the shapes in functions/; keep them in step.
+import type { Power } from './powers'
 
 export type Status = 'unregistered' | 'pending' | 'approved' | 'removed'
 
@@ -6,7 +7,8 @@ export interface User {
   id: number
   email: string
   username: string
-  role: 'admin' | 'creator' | 'viewer'
+  // Only the admin is 'admin'; what anyone else may do is in Me.powers.
+  role: 'admin' | 'viewer'
   status: Exclude<Status, 'unregistered'>
   can_comment: 0 | 1
   created_at: string
@@ -16,6 +18,8 @@ export interface Me {
   email: string
   user: User | null
   status: Status
+  // Every power for the admin.
+  powers: Power[]
 }
 
 export async function fetchMe(): Promise<Me> {

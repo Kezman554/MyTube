@@ -1,10 +1,10 @@
 import { all, deleteUpload, getUploadByKey, getVideoByKey, type Upload } from '../../lib/db'
 import type { ApiFunction } from '../../lib/env'
-import { requireRole } from '../../lib/guards'
+import { requireAdmin } from '../../lib/guards'
 import { deleteObject, VIDEO_PREFIX } from '../../lib/storage'
 import { videoError } from '../../lib/videos'
 
-// Leftover uploads: whole video files in R2 that no video record points at. These are uploads
+// Admin only (no power covers it). Leftover uploads: whole video files in R2 that no video record points at. These are uploads
 // finished before uploads were kept on record, and completed uploads whose details were never saved.
 // The admin either creates the video (POST /api/videos with the key) or deletes the file here.
 
@@ -57,5 +57,5 @@ const remove: ApiFunction = async ({ request, env }) => {
   return Response.json({ ok: true })
 }
 
-export const onRequestGet = [requireRole('admin'), list]
-export const onRequestDelete = [requireRole('admin'), remove]
+export const onRequestGet = [requireAdmin, list]
+export const onRequestDelete = [requireAdmin, remove]

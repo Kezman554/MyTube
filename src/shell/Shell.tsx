@@ -7,7 +7,7 @@ import './shell.css'
 // Every page inside the app: the top bar (wordmark home, account button) over the page.
 // No sidebar: Upload and Admin are in the account menu, Videos and Playlists are channel tabs.
 export function Shell() {
-  const { user } = useMe()
+  const me = useMe()
   const onAdmin = useMatch('/admin/*')
   return (
     <>
@@ -22,7 +22,7 @@ export function Shell() {
           </Link>
           {onAdmin && <span className="topbar-chip">Admin</span>}
         </div>
-        <AccountMenu user={user} />
+        <AccountMenu me={me} />
       </header>
       <main id="main" className="shell-main">
         <Outlet />

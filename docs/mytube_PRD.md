@@ -24,14 +24,14 @@ Nick (admin), his son (creator), and a small group of approved family and friend
 - Login via Cloudflare Access email one-time code (no passwords)
 - Viewers self-register on first visit and choose a username
 - New viewers wait on a pending screen until the admin approves them
-- Roles: admin, creator, viewer
+- Roles: admin (the ADMIN_EMAIL account) and everyone else. The admin hands out named powers over time: upload, publish_own, manage_playlists, moderate_comments, review_drafts, approve_users. The admin holds them all; nothing done under a power can act on the admin
 - Unapproved users cannot see any videos or data
 
 ### Video Pipeline
 - Upload from a computer to R2
 - Title, description and custom thumbnail per video
-- Creator uploads are saved as drafts until admin approval
-- Admin uploads can publish directly
+- Uploads (upload power) are saved as drafts until reviewed
+- The admin, and anyone with publish_own (their own videos) or review_drafts, can publish directly
 - Playlists to group videos into series
 
 ### Viewer Experience
@@ -45,10 +45,10 @@ Nick (admin), his son (creator), and a small group of approved family and friend
 - Comments that appear instantly
 
 ### Admin Controls
-- Approve, remove and change roles of users
+- Approve and remove users; grant and revoke powers (admin only)
 - Mute a user from commenting while still letting them watch
 - Delete any comment
-- Approve or reject creator drafts
+- Approve or reject drafts
 
 ## Scope
 

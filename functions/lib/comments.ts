@@ -100,6 +100,22 @@ export function readParentId(value: unknown): { id: number | null } | { message:
   return { message: "That comment can't be replied to." }
 }
 
+// Whether deleting comment `id` would delete anything the admin wrote: the comment itself, or (for a
+// top-level comment) one of the replies that go with it. Null when there is no such comment.
+export async function deletionTouchesAdmin(db: D1Database, id: number) {
+  const row = await first<{ found: number; admin: number }>(
+    db,
+    `SELECT EXISTS (SELECT 1 FROM comments WHERE id = ?) AS found,
+       EXISTS (SELECT 1 FROM comments JOIN users ON users.id = comments.user_id
+               WHERE (comments.id = ? OR comments.parent_id = ?) AND users.role = 'admin') AS admin`,
+    id,
+    id,
+    id,
+  )
+  if (!row?.found) return null
+  return row.admin === 1
+}
+
 // Deleting a top-level comment deletes its replies too (ON DELETE CASCADE on parent_id).
 export async function deleteComment(db: D1Database, id: number) {
   return (await first(db, 'DELETE FROM comments WHERE id = ? RETURNING id', id)) !== null

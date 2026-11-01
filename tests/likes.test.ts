@@ -5,7 +5,7 @@ import { onRequestGet as detailRoute } from '../functions/api/videos/[id]'
 import { onRequestDelete as unlikeRoute, onRequestPost as likeRoute } from '../functions/api/videos/[id]/like'
 import { createUser, createVideo, run, type User, type VideoStatus } from '../functions/lib/db'
 import type { Env } from '../functions/lib/env'
-import { createTestDb, runChain } from './helpers'
+import { createCreator, createTestDb, runChain } from './helpers'
 
 let mf: Miniflare
 let env: Env
@@ -15,7 +15,7 @@ beforeAll(async () => {
   const test = await createTestDb('likes-test')
   mf = test.mf
   env = { DB: test.db, MEDIA: {} as R2Bucket, ACCESS_AUD: 'aud', ACCESS_TEAM_DOMAIN: 'team', ADMIN_EMAIL: 'admin@example.com' }
-  creator = (await createUser(env.DB, 'son@example.com', 'CrAzYeNdErMaN', 'creator', 'approved'))!
+  creator = (await createCreator(env.DB, 'son@example.com', 'CrAzYeNdErMaN', 'approved'))!
   viewer = (await createUser(env.DB, 'nan@example.com', 'Grandma', 'viewer', 'approved'))!
   other = (await createUser(env.DB, 'jo@example.com', 'AuntieJo', 'viewer', 'approved'))!
   pending = (await createUser(env.DB, 'new@example.com', 'Newbie', 'viewer', 'pending'))!

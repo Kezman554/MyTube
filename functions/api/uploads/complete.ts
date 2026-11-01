@@ -1,6 +1,6 @@
 import { deleteUpload, markUploadComplete } from '../../lib/db'
 import type { ApiFunction } from '../../lib/env'
-import { requireRole } from '../../lib/guards'
+import { requirePower } from '../../lib/guards'
 import { completeMultipartUpload, deleteObject } from '../../lib/storage'
 import { loadOwnUpload, MAX_PARTS, readJsonObject, uploadError } from '../../lib/uploads'
 
@@ -45,4 +45,4 @@ function parseParts(value: unknown): R2UploadedPart[] | null {
   return parts
 }
 
-export const onRequestPost = [requireRole('creator'), complete]
+export const onRequestPost = [requirePower('upload'), complete]

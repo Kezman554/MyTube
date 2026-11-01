@@ -90,6 +90,19 @@
   gap: 12px;
 }
 
+/* publish_own on your own draft: Publish, then an inline confirm. */
+.watch-publish {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.watch-publish-question {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .watch-description {
   margin: 0;
   padding: 12px;

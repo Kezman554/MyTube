@@ -1,5 +1,5 @@
 import type { ApiFunction } from '../../../../../lib/env'
-import { requireRole } from '../../../../../lib/guards'
+import { requirePower } from '../../../../../lib/guards'
 import { adminPlaylistJson, loadPlaylist, playlistError, removeVideo } from '../../../../../lib/playlists'
 
 // DELETE /api/admin/playlists/:id/videos/:videoId -> { playlist }: takes the video out of the
@@ -14,4 +14,4 @@ const remove: ApiFunction = async ({ env, params }) => {
   return Response.json({ playlist: await adminPlaylistJson(env.DB, playlist) })
 }
 
-export const onRequestDelete = [requireRole('admin'), remove]
+export const onRequestDelete = [requirePower('manage_playlists'), remove]

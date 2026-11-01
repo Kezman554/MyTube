@@ -4,7 +4,7 @@ import { LoadFailed, Loading } from '../pages/Status'
 import { listDrafts, publishDraft, rejectDraft, type Draft } from './api'
 import './admin.css'
 
-// Admin only: creator drafts waiting for review, oldest first. Each can be watched here, then
+// review_drafts: drafts waiting for review, oldest first (the admin's own only for the admin). Each can be watched here, then
 // published for everyone or rejected (which deletes it for good, so it asks first).
 export function Drafts() {
   const [drafts, reload] = useLoad('drafts', listDrafts)

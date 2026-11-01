@@ -1,6 +1,8 @@
 // Typed D1 access. Row types mirror migrations/; keep them in step.
 
-export type Role = 'admin' | 'creator' | 'viewer'
+// role only separates the admin (the ADMIN_EMAIL account) from everyone else; what anyone else may
+// do comes from their powers (lib/powers.ts).
+export type Role = 'admin' | 'viewer'
 export type UserStatus = 'pending' | 'approved' | 'removed'
 export type VideoStatus = 'draft' | 'published'
 
@@ -110,10 +112,10 @@ export function listUsers(db: D1Database, status?: UserStatus) {
     : all<User>(db, 'SELECT * FROM users ORDER BY created_at, id')
 }
 
-export type UserChanges = Partial<Pick<User, 'status' | 'role' | 'can_comment'>>
+export type UserChanges = Partial<Pick<User, 'status' | 'can_comment'>>
 
 // Column names come from this fixed list, never from the caller.
-const USER_COLUMNS = ['status', 'role', 'can_comment'] as const
+const USER_COLUMNS = ['status', 'can_comment'] as const
 
 export function updateUser(db: D1Database, id: number, changes: UserChanges) {
   const columns = USER_COLUMNS.filter((column) => changes[column] !== undefined)
@@ -244,11 +246,12 @@ export async function countViews(db: D1Database, videoId: number) {
 }
 
 // The review queue, oldest first, with who uploaded each draft.
-export function listDrafts(db: D1Database) {
+// The review queue. includeAdmin false leaves out the admin's own drafts (for reviewers, who can't act on them).
+export function listDrafts(db: D1Database, includeAdmin = true) {
   return all<Video & { uploader_username: string }>(
     db,
     `SELECT videos.*, users.username AS uploader_username FROM videos JOIN users ON users.id = videos.uploaded_by
-     WHERE videos.status = 'draft' ORDER BY videos.created_at, videos.id`,
+     WHERE videos.status = 'draft' ${includeAdmin ? '' : "AND users.role != 'admin'"} ORDER BY videos.created_at, videos.id`,
   )
 }
 

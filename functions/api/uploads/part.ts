@@ -1,5 +1,5 @@
 import type { ApiFunction } from '../../lib/env'
-import { requireRole } from '../../lib/guards'
+import { requirePower } from '../../lib/guards'
 import { uploadPart } from '../../lib/storage'
 import { loadOwnUpload, looksLikeVideo, MAX_PART_BYTES, MAX_PARTS, uploadError } from '../../lib/uploads'
 
@@ -32,4 +32,4 @@ const part: ApiFunction = async ({ request, env, data }) => {
   return Response.json({ partNumber: uploaded.partNumber, etag: uploaded.etag })
 }
 
-export const onRequestPut = [requireRole('creator'), part]
+export const onRequestPut = [requirePower('upload'), part]

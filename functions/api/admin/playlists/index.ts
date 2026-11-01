@@ -1,6 +1,6 @@
 import { all, type Playlist } from '../../../lib/db'
 import type { ApiFunction } from '../../../lib/env'
-import { requireRole } from '../../../lib/guards'
+import { requirePower } from '../../../lib/guards'
 import { adminPlaylistJson, createPlaylist, readPlaylistFields } from '../../../lib/playlists'
 import { readJsonObject } from '../../../lib/uploads'
 import { videoError } from '../../../lib/videos'
@@ -22,5 +22,5 @@ const create: ApiFunction = async ({ request, env }) => {
   return Response.json({ playlist: await adminPlaylistJson(env.DB, playlist!) }, { status: 201 })
 }
 
-export const onRequestGet = [requireRole('admin'), list]
-export const onRequestPost = [requireRole('admin'), create]
+export const onRequestGet = [requirePower('manage_playlists'), list]
+export const onRequestPost = [requirePower('manage_playlists'), create]

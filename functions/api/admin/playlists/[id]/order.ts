@@ -1,6 +1,6 @@
 import { all } from '../../../../lib/db'
 import type { ApiFunction } from '../../../../lib/env'
-import { requireRole } from '../../../../lib/guards'
+import { requirePower } from '../../../../lib/guards'
 import { adminPlaylistJson, loadPlaylist, playlistError, setOrder } from '../../../../lib/playlists'
 import { readJsonObject } from '../../../../lib/uploads'
 
@@ -26,4 +26,4 @@ const reorder: ApiFunction = async ({ request, env, params }) => {
   return Response.json({ playlist: await adminPlaylistJson(env.DB, playlist) })
 }
 
-export const onRequestPut = [requireRole('admin'), reorder]
+export const onRequestPut = [requirePower('manage_playlists'), reorder]

@@ -6,7 +6,7 @@ import { identify as middleware } from '../functions/api/_middleware'
 import { onRequestGet as me } from '../functions/api/me'
 import type { User } from '../functions/lib/db'
 import type { Env, Identity } from '../functions/lib/env'
-import { requireApproved, requireRole } from '../functions/lib/guards'
+import { requireApproved, requireAdmin } from '../functions/lib/guards'
 
 const TEAM = 'mytube-test.cloudflareaccess.com'
 const AUD = 'test-aud'
@@ -107,7 +107,7 @@ describe('middleware', () => {
       headers: { 'Cf-Access-Jwt-Assertion': await token('Stranger@Example.com') },
     })
     expect(await result).toBe(NEXT)
-    expect(context.data).toEqual({ email: 'stranger@example.com', user: null })
+    expect(context.data).toEqual({ email: 'stranger@example.com', user: null, powers: [] })
   })
 
   it('auto-creates the admin as an approved admin', async () => {
@@ -177,7 +177,7 @@ describe('middleware', () => {
 describe('GET /api/me', () => {
   it('reports unregistered for a null user', async () => {
     const { result } = call(me, { data: { email: 'stranger@example.com', user: null } })
-    expect(await (await result).json()).toEqual({ email: 'stranger@example.com', user: null, status: 'unregistered' })
+    expect(await (await result).json()).toEqual({ email: 'stranger@example.com', user: null, status: 'unregistered', powers: [] })
   })
 })
 
@@ -212,16 +212,10 @@ describe('guards', () => {
     expect((await guard(requireApproved, user('viewer', 'approved'))).passed).toBe(true)
   })
 
-  it('requireRole rejects lower roles and unapproved users', async () => {
-    expect((await guard(requireRole('creator'), user('viewer', 'approved'))).res.status).toBe(403)
-    expect((await guard(requireRole('admin'), user('creator', 'approved'))).res.status).toBe(403)
-    expect((await guard(requireRole('admin'), user('admin', 'pending'))).passed).toBe(false)
-    expect((await guard(requireRole('admin'), null)).passed).toBe(false)
-  })
-
-  it('requireRole passes the role and roles above it', async () => {
-    expect((await guard(requireRole('creator'), user('creator', 'approved'))).passed).toBe(true)
-    expect((await guard(requireRole('creator'), user('admin', 'approved'))).passed).toBe(true)
-    expect((await guard(requireRole('admin'), user('admin', 'approved'))).passed).toBe(true)
+  it('requireAdmin admits the approved admin only', async () => {
+    expect((await guard(requireAdmin, user('viewer', 'approved'))).res.status).toBe(403)
+    expect((await guard(requireAdmin, user('admin', 'pending'))).passed).toBe(false)
+    expect((await guard(requireAdmin, null)).passed).toBe(false)
+    expect((await guard(requireAdmin, user('admin', 'approved'))).passed).toBe(true)
   })
 })

@@ -1,5 +1,5 @@
 import type { ApiFunction } from '../../../../lib/env'
-import { requireRole } from '../../../../lib/guards'
+import { requirePower } from '../../../../lib/guards'
 import {
   adminPlaylistJson,
   deletePlaylist,
@@ -33,5 +33,5 @@ const remove: ApiFunction = async ({ env, params }) => {
   return Response.json({ ok: true })
 }
 
-export const onRequestPatch = [requireRole('admin'), patch]
-export const onRequestDelete = [requireRole('admin'), remove]
+export const onRequestPatch = [requirePower('manage_playlists'), patch]
+export const onRequestDelete = [requirePower('manage_playlists'), remove]

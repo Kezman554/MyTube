@@ -88,7 +88,11 @@ export const postComment = (videoId: number, body: string, parentId?: number) =>
     (b: { comment: Comment }) => b.comment,
   )
 
-// The form carries key, title, description, thumbnail and (admin only) publish.
+// publish_own: publish one of your own drafts without review.
+export const publishOwn = (videoId: number) =>
+  request(`/api/videos/${videoId}/publish`, { method: 'POST' }, (b: { video: Video }) => b.video)
+
+// The form carries key, title, description, thumbnail and publish (needs publish_own or review_drafts).
 export const createVideo = (form: FormData) =>
   request('/api/videos', { method: 'POST', body: form }, (b: { video: Video }) => b.video)
 

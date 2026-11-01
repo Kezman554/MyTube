@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router'
 import { deleteComment } from '../admin/api'
-import { useMe } from '../auth/MeContext'
+import { can, useMe } from '../auth/MeContext'
 import { commentAge } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
 import { COMMENT_MAX, listComments, postComment, type Comment, type Reply, type Thread } from '../videos/api'
@@ -25,7 +25,8 @@ interface ReplyTarget {
 // Comments under a video: the box to add one (or a short message for muted users), then the
 // comments newest first with who wrote them and when, each with its replies oldest first.
 export function Comments({ videoId, published }: { videoId: number; published: boolean }) {
-  const { user } = useMe()
+  const me = useMe()
+  const { user } = me
   const [comments, reload] = useLoad(`comments:${videoId}`, () => listComments(videoId))
   // The server is the judge: if it says muted, the boxes go even if this page was loaded before the mute.
   const [mutedNow, setMutedNow] = useState(false)
@@ -68,7 +69,7 @@ export function Comments({ videoId, published }: { videoId: number; published: b
               key={thread.id}
               videoId={videoId}
               thread={thread}
-              canDelete={user.role === 'admin'}
+              canDelete={can(me, 'moderate_comments')}
               canReply={canReply}
               linkedId={linkedId}
               replyTarget={replyTarget?.threadId === thread.id ? replyTarget : null}

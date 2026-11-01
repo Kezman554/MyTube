@@ -1,6 +1,6 @@
 import { getVideo } from '../../../../../lib/db'
 import type { ApiFunction } from '../../../../../lib/env'
-import { requireRole } from '../../../../../lib/guards'
+import { requirePower } from '../../../../../lib/guards'
 import { adminPlaylistJson, appendVideo, loadPlaylist, playlistError } from '../../../../../lib/playlists'
 import { readJsonObject } from '../../../../../lib/uploads'
 
@@ -27,4 +27,4 @@ const add: ApiFunction = async ({ request, env, params }) => {
   return Response.json({ playlist: await adminPlaylistJson(env.DB, playlist) }, { status: 201 })
 }
 
-export const onRequestPost = [requireRole('admin'), add]
+export const onRequestPost = [requirePower('manage_playlists'), add]

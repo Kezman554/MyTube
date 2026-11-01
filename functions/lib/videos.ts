@@ -1,4 +1,7 @@
-import { deleteVideoRow, getUploadByKey, getVideo, getVideoByKey, run, type User, type Video, type VideoCounts } from './db'
+import { deleteVideoRow, first, getUploadByKey, getVideo, getVideoByKey, run, type User, type Video, type VideoCounts } from './db'
+import type { ApiFunction } from './env'
+import { powersOf } from './guards'
+import { isAdmin, type Power } from './powers'
 import { deleteObject, newThumbnailKey, VIDEO_PREFIX } from './storage'
 import { MiB } from './uploads'
 
@@ -54,15 +57,36 @@ export async function deleteVideoEverywhere(db: D1Database, bucket: R2Bucket, vi
   if (video.thumbnail_key) await deleteObject(bucket, video.thumbnail_key)
 }
 
-// Published videos are for every approved user; a draft only for the admin and its uploader.
-// listVisibleVideos() in db.ts applies the same rule to lists (less the admin's review queue).
-export function canSee(user: User, video: Video) {
-  return video.status === 'published' || user.role === 'admin' || video.uploaded_by === user.id
+// Published videos are for every approved user. A draft is for its uploader, the admin, and anyone
+// with review_drafts, except that the admin's own drafts stay the admin's (reviewers can't act on them).
+// listVisibleVideos() in db.ts applies the uploader rule to lists; the review queue is listDrafts().
+export async function canSee(db: D1Database, user: User, powers: ReadonlySet<Power>, video: Video) {
+  if (video.status === 'published' || isAdmin(user) || video.uploaded_by === user.id) return true
+  return powers.has('review_drafts') && !(await isAdminId(db, video.uploaded_by))
 }
 
-// Editing: the admin edits anything; a creator edits their own drafts only.
-export function canEdit(user: User, video: Video) {
-  return user.role === 'admin' || (user.role === 'creator' && video.uploaded_by === user.id && video.status === 'draft')
+// canSee for the caller of this request.
+export async function callerCanSee(context: Pick<Parameters<ApiFunction>[0], 'data' | 'env'>, video: Video) {
+  return canSee(context.env.DB, context.data.user!, await powersOf(context), video)
+}
+
+// Editing: the admin edits anything (no power covers other people's or published videos); anyone
+// holding upload edits their own drafts.
+export function canEdit(user: User, powers: ReadonlySet<Power>, video: Video) {
+  return isAdmin(user) || (powers.has('upload') && video.uploaded_by === user.id && video.status === 'draft')
+}
+
+// Publishing a draft uploaded by `uploadedBy`: the admin any; review_drafts anyone's but the admin's;
+// publish_own the caller's own.
+export function canPublish(user: User, powers: ReadonlySet<Power>, uploadedBy: number, uploaderIsAdmin: boolean) {
+  if (isAdmin(user)) return true
+  if (uploaderIsAdmin) return false
+  return powers.has('review_drafts') || (powers.has('publish_own') && uploadedBy === user.id)
+}
+
+// Whether a user id is the admin's, for the checks above.
+export async function isAdminId(db: D1Database, userId: number) {
+  return (await first<{ role: string }>(db, 'SELECT role FROM users WHERE id = ?', userId))?.role === 'admin'
 }
 
 // Thumbnails: the type is decided from the file's first bytes, never from its name or the browser.
@@ -130,9 +154,10 @@ export function readText(form: FormData, name: 'title' | 'description', required
   return { value }
 }
 
-// Item 5: which R2 video keys a user may turn into a video, and who it is then credited to.
-//   creator: only a completed upload of their own
-//   admin:   any completed upload, or a leftover object from before uploads were kept on record
+// Which R2 video keys a user may turn into a video, and who it is then credited to.
+//   upload power: only a completed upload of their own
+//   admin only (no power covers it): any completed upload, or a leftover object from before uploads
+//   were kept on record
 // Anything else is refused, and a key that already backs a video is refused too.
 export async function resolveVideoKey(
   db: D1Database,
@@ -148,11 +173,11 @@ export async function resolveVideoKey(
   const upload = await getUploadByKey(db, key)
   if (upload) {
     if (!upload.completed_at) return refuse()
-    if (user.role !== 'admin' && upload.user_id !== user.id) return refuse()
+    if (!isAdmin(user) && upload.user_id !== user.id) return refuse()
     return { key, uploadedBy: upload.user_id }
   }
 
   // No upload row: only the admin may adopt it, and only if the object really exists.
-  if (user.role !== 'admin' || !(await bucket.head(key))) return refuse()
+  if (!isAdmin(user) || !(await bucket.head(key))) return refuse()
   return { key, uploadedBy: user.id }
 }

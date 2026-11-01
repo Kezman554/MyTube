@@ -87,21 +87,22 @@ describe('PATCH /api/admin/users/:id', () => {
     expect((await getUserById(env.DB, viewer.id))!.can_comment).toBe(1)
   })
 
-  it('lets the admin change roles', async () => {
-    await patch(admin, viewer.id, { role: 'creator' })
-    expect((await getUserById(env.DB, viewer.id))!.role).toBe('creator')
-    await patch(admin, viewer.id, { role: 'viewer' })
+  it('no longer changes roles: powers do that', async () => {
+    for (const role of ['creator', 'viewer', 'admin']) {
+      const res = await patch(admin, viewer.id, { role })
+      expect(res.status).toBe(400)
+      expect(((await res.json()) as { error: string }).error).toBe('invalid_role')
+    }
     expect((await getUserById(env.DB, viewer.id))!.role).toBe('viewer')
   })
 
   it('sets several fields at once', async () => {
-    const res = await patch(admin, removed.id, { status: 'approved', role: 'creator', can_comment: false })
-    expect(((await res.json()) as { user: User }).user).toMatchObject({ status: 'approved', role: 'creator', can_comment: 0 })
-    await patch(admin, removed.id, { status: 'removed', role: 'viewer', can_comment: true })
+    const res = await patch(admin, removed.id, { status: 'approved', can_comment: false })
+    expect(((await res.json()) as { user: User }).user).toMatchObject({ status: 'approved', role: 'viewer', can_comment: 0, powers: [] })
+    await patch(admin, removed.id, { status: 'removed', can_comment: true })
   })
 
   it('never makes anyone admin, or pending', async () => {
-    expect((await patch(admin, viewer.id, { role: 'admin' })).status).toBe(400)
     expect((await patch(admin, viewer.id, { status: 'pending' })).status).toBe(400)
     expect((await getUserById(env.DB, viewer.id))!.role).toBe('viewer')
   })
@@ -117,12 +118,10 @@ describe('PATCH /api/admin/users/:id', () => {
     expect((await patch(admin, 'abc', { status: 'approved' })).status).toBe(404)
   })
 
-  it('stops the admin demoting or removing themselves', async () => {
-    for (const body of [{ role: 'viewer' }, { role: 'creator' }, { status: 'removed' }]) {
-      const res = await patch(admin, admin.id, body)
-      expect(res.status).toBe(403)
-      expect(((await res.json()) as { error: string }).error).toBe('cannot_change_self')
-    }
+  it('stops the admin removing themselves', async () => {
+    const res = await patch(admin, admin.id, { status: 'removed' })
+    expect(res.status).toBe(403)
+    expect(((await res.json()) as { error: string }).error).toBe('cannot_change_self')
     expect(await getUserById(env.DB, admin.id)).toMatchObject({ role: 'admin', status: 'approved' })
   })
 

@@ -2,15 +2,16 @@ import { addComment, commentJson, findReplyTarget, listThreads, readCommentBody,
 import type { ApiFunction } from '../../../lib/env'
 import { requireApproved } from '../../../lib/guards'
 import { readJsonObject } from '../../../lib/uploads'
-import { canSee, loadVideo, videoError } from '../../../lib/videos'
+import { callerCanSee, loadVideo, videoError } from '../../../lib/videos'
 
 // GET /api/videos/:id/comments -> { comments: [{ id, body, created_at, user: { id, username },
 //   replies: [{ id, body, created_at, user, parent_id, reply_to: { id, username } | null }] }], count },
 // for anyone who can see the video. Top-level comments newest first, replies oldest first; count
 // includes replies.
-const list: ApiFunction = async ({ env, data, params }) => {
+const list: ApiFunction = async (context) => {
+  const { env, params } = context
   const video = await loadVideo(env.DB, params.id)
-  if (!video || !canSee(data.user!, video)) return videoError(404, 'not_found')
+  if (!video || !(await callerCanSee(context, video))) return videoError(404, 'not_found')
   return Response.json(await listThreads(env.DB, video.id))
 }
 
@@ -18,10 +19,11 @@ const list: ApiFunction = async ({ env, data, params }) => {
 // get 403 'muted'. Comments open once a video is published; the body is trimmed and length-limited.
 // parent_id makes it a reply: it must be a comment on this video (else 400 'invalid_parent'), and a
 // reply to a reply is stored against that reply's parent, so threads are one level deep.
-const post: ApiFunction = async ({ request, env, data, params }) => {
+const post: ApiFunction = async (context) => {
+  const { request, env, data, params } = context
   const user = data.user!
   const video = await loadVideo(env.DB, params.id)
-  if (!video || !canSee(user, video)) return videoError(404, 'not_found')
+  if (!video || !(await callerCanSee(context, video))) return videoError(404, 'not_found')
   if (!user.can_comment) return videoError(403, 'muted', "You can't post comments at the moment.")
   if (video.status !== 'published') {
     return videoError(409, 'not_published', 'Comments open once the video is published.')

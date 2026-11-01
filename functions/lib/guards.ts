@@ -1,4 +1,4 @@
-import type { Role } from './db'
+import { isAdmin, loadPowers, type Power } from './powers'
 import type { ApiFunction } from './env'
 
 // Guards are Pages handlers: put them before the route handler, e.g.
@@ -15,14 +15,41 @@ export const requireApproved: ApiFunction = ({ data, next }) => {
   return next()
 }
 
-// Admin outranks creator, so requireRole('creator') also admits admins.
-const RANK: Record<Role, number> = { viewer: 0, creator: 1, admin: 2 }
+type Context = Parameters<ApiFunction>[0]
 
-export function requireRole(role: 'admin' | 'creator'): ApiFunction {
-  return (context) => {
+// The caller's powers for this request. The middleware loads them fresh on every request; a handler
+// run without it (tests) loads them here, once per request. The admin holds every power.
+export async function powersOf(context: Pick<Context, 'data' | 'env'>): Promise<ReadonlySet<Power>> {
+  const { data, env } = context
+  if (!data.powers) data.powers = data.user ? await loadPowers(env.DB, data.user) : []
+  return new Set(data.powers)
+}
+
+// Admits an approved caller holding any one of these powers (the admin holds them all).
+export function requirePower(...powers: [Power, ...Power[]]): ApiFunction {
+  return async (context) => {
     const { user } = context.data
     if (!user || user.status !== 'approved') return requireApproved(context)
-    if (RANK[user.role] < RANK[role]) return forbidden('forbidden')
+    const held = await powersOf(context)
+    if (!powers.some((p) => held.has(p))) return forbidden('forbidden')
     return context.next()
   }
+}
+
+// What no power covers: the admin only.
+export const requireAdmin: ApiFunction = (context) => {
+  const { user } = context.data
+  if (!user || user.status !== 'approved') return requireApproved(context)
+  if (!isAdmin(user)) return forbidden('forbidden')
+  return context.next()
+}
+
+// Nothing done under a power may act on the admin: muting or removing them, deleting their comments,
+// publishing or rejecting their drafts. The admin acting on their own account is not under a power.
+export function actsOnAdmin(caller: { role: string }, targetIsAdmin: boolean) {
+  return targetIsAdmin && !isAdmin(caller)
+}
+
+export function cannotActOnAdmin(message = "That belongs to the admin, so it can't be changed here.") {
+  return Response.json({ error: 'cannot_act_on_admin', message }, { status: 403 })
 }

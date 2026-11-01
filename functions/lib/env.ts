@@ -1,4 +1,5 @@
 import type { User } from './db'
+import type { Power } from './powers'
 
 // Bindings and vars. Secrets come from .dev.vars locally and Pages settings in production.
 export interface Env {
@@ -15,6 +16,8 @@ export interface Env {
 export interface Identity extends Record<string, unknown> {
   email: string
   user: User | null
+  // The caller's powers, read fresh by the middleware on every request (all of them for the admin).
+  powers?: Power[]
 }
 
 export type ApiFunction = PagesFunction<Env, string, Identity>
