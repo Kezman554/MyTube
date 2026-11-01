@@ -113,7 +113,7 @@ describe('/api/uploads', () => {
     expect((await complete(creator, { ...started.json, parts: [p1.json, p2.json] })).status).toBe(404)
     expect((await abort(creator, started.json)).status).toBe(404)
     expect(await env.MEDIA.head(String(started.json.key))).not.toBeNull()
-  })
+  }, 20_000) // 8 MiB through local R2 in two parts: well under a second alone, but past the 5 s default under a full parallel run
 
   it('lets the admin upload too', async () => {
     const started = await start(admin, { filename: 'a.webm', size: 8 })

@@ -6,6 +6,7 @@ import { ADMIN_TABS, adminTabsFor } from './admin/tabs'
 import { AdminPage } from './pages/AdminPage'
 import { ChannelPage } from './pages/ChannelPage'
 import { ChannelSettingsPage } from './pages/ChannelSettingsPage'
+import { StudioPage } from './pages/StudioPage'
 import { PlaylistPage } from './pages/PlaylistPage'
 import { NotFoundPage } from './pages/Status'
 import { UploadPage } from './pages/UploadPage'
@@ -51,6 +52,14 @@ function App() {
               element={
                 <Only allow={(me) => me.edits_channel}>
                   <ChannelSettingsPage />
+                </Only>
+              }
+            />
+            <Route
+              path="studio"
+              element={
+                <Only allow={(me) => me.edits_channel}>
+                  <StudioPage />
                 </Only>
               }
             />

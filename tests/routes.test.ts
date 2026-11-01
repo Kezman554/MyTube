@@ -37,6 +37,8 @@ const EXPECTED: Record<string, Need> = {
   'PUT /api/channel/bio': 'owner',
   'PUT /api/channel/banner': 'owner',
   'DELETE /api/channel/banner': 'owner',
+  'GET /api/studio': 'owner',
+  'POST /api/studio/seen': 'owner',
 
   'POST /api/videos': 'upload',
   'PATCH /api/videos/[id]': 'upload',

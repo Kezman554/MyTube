@@ -1,0 +1,216 @@
+/* The Studio. Values come from tokens.css only; panels, buttons, chips and thumbnails are shared.
+   Magenta (attention) marks what's new: DESIGN.md's "something is waiting", always with its words. */
+
+.studio {
+  display: grid;
+  gap: 16px;
+}
+
+.studio > .page-title,
+.studio-since {
+  margin: 0;
+}
+
+/* Big totals: 2 x 2 on a phone, 4 across from 720px. */
+.studio-totals {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 720px) {
+  .studio-totals {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.studio-total {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 6px;
+  padding: 14px;
+  min-width: 0;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+}
+
+.studio-total-new {
+  border-color: var(--attention);
+}
+
+.studio-total-number {
+  font-family: var(--font-pixel);
+  font-size: 1.375rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.studio-total-label {
+  font-weight: 600;
+}
+
+.new-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+  white-space: nowrap;
+  border: var(--border-width) solid var(--attention);
+}
+
+/* Videos and comments: one at a time (picked by the buttons) below 1024px, side by side above. */
+.studio-panes {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+.studio-pane {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+}
+
+.studio-pane-title {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 1023px) {
+  .studio-pane-hidden {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .studio-tabs {
+    display: none;
+  }
+
+  .studio-panes {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+.studio-sort {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.studio-videos,
+.studio-comments,
+.studio-stats {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.studio-videos,
+.studio-comments {
+  display: grid;
+}
+
+/* One video: thumbnail, then title, when, and its counts. A magenta edge when something is new. */
+.studio-video {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0 12px 10px;
+  border-top: var(--border-width) solid var(--divider);
+  border-left: var(--border-width) solid transparent;
+}
+
+.studio-video-new {
+  border-left-color: var(--attention);
+}
+
+.studio-video-thumb {
+  display: block;
+}
+
+.studio-video-main {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.studio-video-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.studio-video-when {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.studio-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.875rem;
+}
+
+.studio-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* One comment: who, when and where, the words, and a link to it on the video. */
+.studio-comment {
+  display: grid;
+  gap: 4px;
+  padding: 12px 0 12px 10px;
+  border-top: var(--border-width) solid var(--divider);
+  border-left: var(--border-width) solid transparent;
+}
+
+.studio-comment-new {
+  border-left-color: var(--attention);
+}
+
+.studio-comment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.studio-comment-name {
+  font-weight: 600;
+}
+
+.studio-comment-body {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.studio-comment-link {
+  justify-self: start;
+  font-size: 0.8125rem;
+}
